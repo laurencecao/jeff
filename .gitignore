@@ -1,0 +1,29 @@
+# Virtual environments
+.venv
+.env
+
+# Regenerable bulk data: the raw HF cache, and the large distilled/SFT files
+# that are rebuilt from live Jev calls (~$0.20 of teacher tokens).
+data/factcheck/raw/
+data/factcheck/distill_full.jsonl
+data/factcheck/distill_pilot.jsonl
+data/factcheck/synthetic_pilot.jsonl
+data/factcheck/sft_train.jsonl
+data/factcheck/sft_val.jsonl
+data/factcheck/jev_cache.jsonl
+
+# Per-run predictions and the harness's own last-run record
+data/factcheck/preds_*.jsonl
+results/*_last.json
+
+# Model checkpoints / adapters (publish to a model hub, not git)
+artifacts/
+*.safetensors
+*.pt
+
+# Python
+__pycache__/
+*.py[oc]
+*.egg-info/
+build/
+dist/

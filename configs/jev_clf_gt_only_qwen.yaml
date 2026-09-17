@@ -1,0 +1,55 @@
+# jev_clf gt_only_qwen arm — encoder-capacity probe.
+# Answers: "is the frozen MiniLM encoder the bottleneck, or the architecture?"
+# Identical to configs/jev_clf_gt_only.yaml in EVERY respect except:
+#   1. encoder_name: Qwen/Qwen2.5-0.5B (hidden 896, ~0.5B params, bf16)
+#      instead of sentence-transformers/all-MiniLM-L6-v2 (hidden 384, ~22M)
+#   2. head_width: 256 instead of 64 — the MiniLM arm's 70k-param head may
+#      itself be the bottleneck; a wider head gives the richer encoder room
+#      difference from the MiniLM arm and is reported as such; the sibling
+#      config configs/jev_clf_gt_only_qwen_w64.yaml holds head_width at 64
+#      for a clean one-variable encoder-only comparison.
+#   3. lr: 1e-4 instead of 1e-3 — REQUIRED, not a tuning choice. Qwen's
+#      hidden states have absmax ~220 (vs MiniLM ~6), so the unnormalized
+#      head's attention logits reach absmax ~750 at init; at lr=1e-3 the
+#      head cannot even overfit one batch of 8 (loss oscillates around the
+#      2*ln(3)=2.197 uniform floor, predictions pinned at 1/3). At lr=1e-4
+#      the same head overfits the same batch to loss 0.40. Diagnosed via
+#      grad-norm + overfit probe; gradients DO reach every head submodule.
+# Consumed by scripts/jev_clf_train_arm.py (data.label_source filters rows).
+
+# --- model -----------------------------------------------------------------
+encoder_name: Qwen/Qwen2.5-0.5B
+freeze_encoder: true          # only the attention/scorer head trains
+head_width: 256               # DELTA vs MiniLM arm (64): wider head for the bigger encoder
+heads: 4                      # same as MiniLM arm
+dropout: 0.1
+max_length: 512
+
+# --- optimization ----------------------------------------------------------
+lr: 0.0001                    # DELTA vs MiniLM arm (1e-3): Qwen hidden absmax~220
+epochs: 30                    # DELTA vs MiniLM arm (15): saturated attention
+                              # slows learning ~10x; needs more steps
+batch_size: 8                 # DELTA vs MiniLM arm (16): 2x steps/epoch to
+                              # escape saturation; still <= 16 per arm spec
+warmup_steps: 20
+patience: 8                   # a little more room for the slow escape from saturation
+seed: 42
+device: auto                  # auto = MPS if available else CPU
+
+# --- calibration -----------------------------------------------------------
+calibration: temperature      # fit on val only; isotonic is fit as a comparison
+
+# --- data ------------------------------------------------------------------
+data:
+  train_files:
+    - data/factcheck/ground_truth.jsonl
+  label_source: ground_truth  # gt_only arm: real labels only, no distill rows
+
+# Per-source weight multipliers, applied on top of row.weight.
+# Identical to the MiniLM gt_only arm.
+source_weights:
+  fever: 2.0
+  vitaminc: 2.0
+  scifact: 2.0
+  climate_fever: 2.0
+  jev_distill: 0.0

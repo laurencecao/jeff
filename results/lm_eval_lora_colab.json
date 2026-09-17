@@ -1,0 +1,61 @@
+{
+  "model": "Qwen/Qwen2.5-1.5B-Instruct+lora_lm",
+  "readout": "first_token",
+  "split": "val",
+  "ground_truth": {
+    "n": 199,
+    "labels": [
+      "not_enough_info",
+      "refuted",
+      "supported"
+    ],
+    "accuracy": 0.7537688442211056,
+    "macro_f1": 0.7263901147396293,
+    "per_label": {
+      "not_enough_info": {
+        "precision": 0.78,
+        "recall": 0.7222222222222222,
+        "f1": 0.7500000000000001,
+        "support": 54
+      },
+      "refuted": {
+        "precision": 0.6585365853658537,
+        "recall": 0.574468085106383,
+        "f1": 0.6136363636363638,
+        "support": 47
+      },
+      "supported": {
+        "precision": 0.7777777777777778,
+        "recall": 0.8571428571428571,
+        "f1": 0.8155339805825242,
+        "support": 98
+      }
+    },
+    "ece": 0.09924462377725533,
+    "brier": 0.38331938499127227,
+    "confusion": {
+      "not_enough_info": {
+        "not_enough_info": 39,
+        "refuted": 4,
+        "supported": 11
+      },
+      "refuted": {
+        "not_enough_info": 7,
+        "refuted": 27,
+        "supported": 13
+      },
+      "supported": {
+        "not_enough_info": 4,
+        "refuted": 10,
+        "supported": 84
+      }
+    }
+  },
+  "agreement_with_jev": {
+    "n": 398,
+    "teacher": "jev-1.13.0",
+    "top1_match": 0.7638190954773869,
+    "mean_tv": 0.2353948544931206,
+    "confidence_correctness_corr": 0.301953878936734
+  }
+}

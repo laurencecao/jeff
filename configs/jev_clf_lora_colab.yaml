@@ -1,0 +1,55 @@
+# jev_clf LoRA arm — fine-tune a real instruct LM so its own next-token
+# distribution over the label tokens IS the classifier (no bolted-on head).
+# Consumed by scripts/jev_clf_lora_train.py.
+#
+# Prompt contract (must stay aligned with scripts/jev_clf_lm_eval.py):
+#   * prompt_format: eval renders each SFT row exactly as the eval harness
+#     does — eval SYSTEM prompt + (question_to_text + State) + "\n\nVerdict:"
+#     under the model's chat template with add_generation_prompt=True.
+#   * completion_leading_space supervises " <label>" (leading space) because
+#     the eval readout (label_variants) scores the first token of " "+label.
+#   * loss is computed on the assistant turn tokens ONLY (" <label>" +
+#     <|im_end|>); every prompt/pad position is masked to -100.
+
+# --- model -----------------------------------------------------------------
+model: Qwen/Qwen2.5-1.5B-Instruct   # 3GB bf16; verified to exist on the Hub
+dtype: bfloat16
+max_length: 2048                    # matches the eval harness truncation
+gradient_checkpointing: true
+
+# --- LoRA ------------------------------------------------------------------
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+# --- optimization ----------------------------------------------------------
+optim:
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 2
+  batch_size: 8                     # logits over 152k vocab dominate memory
+  grad_accum: 4                     # effective batch = 32
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  seed: 42
+
+# --- data ------------------------------------------------------------------
+data:
+  train: data/factcheck/sft_train.jsonl   # 9119 rows (7000 jev-distill + 2119 gt)
+  val: data/factcheck/sft_val.jsonl       # 199 gt val rows, loss tracking only
+  prompt_format: eval                     # eval | sft
+  completion_leading_space: true
+  # Optional per-label_source loss multipliers (e.g. {ground_truth: 2.0}).
+  # Empty = uniform. Left uniform for this run: the distill rows carry Jev's
+  # behaviour and are the bulk of the signal; upweighting gt trades
+  # agreement-with-Jev for val accuracy and confounds the comparison.
+  label_source_weights: {}
+
+# --- output ----------------------------------------------------------------
+out_dir: artifacts/jev_clf/lora_lm
+mlflow:
+  uri: http://127.0.0.1:5001
+  experiment: jev-clf
+  run_name: jev-clf-lora

@@ -1,0 +1,42 @@
+# jev_clf — OptionScorer training config.
+# Consumed by jev_clf.train (train() takes this as a dict; the CLI loads this
+# file). Paths are relative to the repo root.
+
+# --- model -----------------------------------------------------------------
+encoder_name: sentence-transformers/all-MiniLM-L6-v2  # verified under transformers 5.17; Qwen/Qwen2.5-0.5B also works
+freeze_encoder: true          # only the attention/scorer head trains
+head_width: 256
+heads: 4
+dropout: 0.1
+max_length: 512               # tokenizer truncation for state + option texts
+
+# --- optimization ----------------------------------------------------------
+lr: 0.001                     # head-only training; encoder is frozen
+weight_decay: 0.01
+epochs: 20
+batch_size: 8                 # M3 Max / MPS: keep <= 8
+warmup_steps: 20
+patience: 5                   # early stopping on val loss
+seed: 42
+device: auto                  # auto = MPS if available else CPU
+
+# --- calibration -----------------------------------------------------------
+calibration: temperature      # temperature ships in the checkpoint; isotonic is fit as a comparison
+
+# --- data ------------------------------------------------------------------
+data:
+  train_files:
+    - data/factcheck/fixture.jsonl
+    - data/factcheck/distill_pilot.jsonl
+    - data/factcheck/distill_full.jsonl
+    - data/factcheck/ground_truth.jsonl
+
+# Per-source weight multipliers, applied on top of row.weight.
+# Fact-check / ground-truth rows are weighted above generic synthetic ones.
+source_weights:
+  fever: 2.0
+  vitaminc: 2.0
+  scifact: 2.0
+  adversarial: 2.0
+  jev_distill: 1.0
+  synthetic: 0.5

@@ -1,0 +1,42 @@
+# jev_clf gt_only_qwen_w64 arm — clean one-variable encoder comparison.
+# Identical to configs/jev_clf_gt_only.yaml in EVERY respect except the
+# encoder: Qwen/Qwen2.5-0.5B instead of sentence-transformers/all-MiniLM-L6-v2.
+# head_width stays 64 so the only model delta vs the MiniLM arm is the
+# encoder. lr is 1e-4 (not the MiniLM arm's 1e-3) because Qwen's hidden
+# absmax ~220 saturates the unnormalized head at 1e-3 — see the companion
+# config's header for the overfit-probe evidence.
+# Companion to configs/jev_clf_gt_only_qwen.yaml (head_width 256).
+
+# --- model -----------------------------------------------------------------
+encoder_name: Qwen/Qwen2.5-0.5B
+freeze_encoder: true          # only the attention/scorer head trains
+head_width: 64                # same as MiniLM arm — encoder is the only delta
+heads: 4
+dropout: 0.1
+max_length: 512
+
+# --- optimization ----------------------------------------------------------
+lr: 0.0001                    # DELTA vs MiniLM arm (1e-3): Qwen hidden absmax~220
+weight_decay: 0.01
+epochs: 30                    # more steps needed: saturated attention slows learning
+batch_size: 8                 # 2x steps/epoch; <= 16 per arm spec
+warmup_steps: 20
+patience: 8                   # a little more room for the slow escape from saturation
+seed: 42
+device: auto
+
+# --- calibration -----------------------------------------------------------
+calibration: temperature
+
+# --- data ------------------------------------------------------------------
+data:
+  train_files:
+    - data/factcheck/ground_truth.jsonl
+  label_source: ground_truth
+
+source_weights:
+  fever: 2.0
+  vitaminc: 2.0
+  scifact: 2.0
+  climate_fever: 2.0
+  jev_distill: 0.0

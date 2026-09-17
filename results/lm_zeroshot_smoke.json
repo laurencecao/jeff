@@ -1,0 +1,59 @@
+{
+  "model": "Qwen/Qwen2.5-0.5B",
+  "split": "val",
+  "metrics": {
+    "n": 199,
+    "labels": [
+      "not_enough_info",
+      "refuted",
+      "supported"
+    ],
+    "accuracy": 0.36683417085427134,
+    "macro_f1": 0.3074916943521595,
+    "per_label": {
+      "not_enough_info": {
+        "precision": 0.25,
+        "recall": 0.14814814814814814,
+        "f1": 0.18604651162790697,
+        "support": 54
+      },
+      "refuted": {
+        "precision": 0.16923076923076924,
+        "recall": 0.23404255319148937,
+        "f1": 0.19642857142857145,
+        "support": 47
+      },
+      "supported": {
+        "precision": 0.5294117647058824,
+        "recall": 0.5510204081632653,
+        "f1": 0.54,
+        "support": 98
+      }
+    },
+    "ece": 0.15753188429765366,
+    "brier": 0.7051360664009809,
+    "confusion": {
+      "not_enough_info": {
+        "not_enough_info": 8,
+        "refuted": 25,
+        "supported": 21
+      },
+      "refuted": {
+        "not_enough_info": 9,
+        "refuted": 11,
+        "supported": 27
+      },
+      "supported": {
+        "not_enough_info": 15,
+        "refuted": 29,
+        "supported": 54
+      }
+    }
+  },
+  "predicted_distribution": {
+    "supported": 102,
+    "not_enough_info": 32,
+    "refuted": 65
+  },
+  "label_token_collisions": 0
+}

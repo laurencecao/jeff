@@ -1,0 +1,21 @@
+# Post-hoc inference knobs for the jev_clf autoresearch loop.
+#
+# Editing THIS FILE is a first-class loop iteration: it changes the decision
+# rule without retraining, so a candidate is measurable in one harness run
+# (~3 min on this Mac) instead of one Colab training run (~15 min + upload).
+#
+# The label posterior is:  softmax(logits / temperature)  * label_bias, then
+# renormalised. `label_bias` is the cheap lever for the observed bias where the
+# model over-predicts `supported` (23 of 48 test errors are false `supported`).
+#
+# Anything that needs the model itself to change (different base, more data,
+# class-weighted loss) is NOT a config change — it requires a retrain, and
+# must be run as an explicit experiment rather than a config edit.
+
+readout: first_token        # first_token | sequence
+max_length: 2048
+temperature: 1.0            # >1 softens the posterior (affects ECE)
+label_bias:                 # multiplicative prior correction per label
+  supported: 1.0
+  refuted: 1.0
+  not_enough_info: 1.0

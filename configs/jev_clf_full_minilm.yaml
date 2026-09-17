@@ -1,0 +1,51 @@
+# jev_clf full_minilm arm — ground truth + Jev distillation (the headline arm).
+# Mirrors configs/jev_clf_gt_only.yaml EXACTLY; the only intended differences
+# are the training data (distill_full + ground_truth) and source_weights.
+# Consumed by scripts/jev_clf_train_full.py, which delegates to
+# scripts/jev_clf_train_arm.py after the full-arm data assertions.
+
+# --- model -----------------------------------------------------------------
+encoder_name: sentence-transformers/all-MiniLM-L6-v2
+freeze_encoder: true          # only the attention/scorer head trains
+head_width: 64                # same narrow head as gt_only
+heads: 4
+dropout: 0.1
+max_length: 512
+
+# --- optimization ----------------------------------------------------------
+lr: 0.001
+weight_decay: 0.01
+epochs: 25                    # raised from 15: ~5.4x more train rows; patience 5 still governs
+batch_size: 16                # <= 16 per arm spec; M3 Max / MPS
+warmup_steps: 20
+patience: 5
+seed: 42
+device: auto                  # auto = MPS if available else CPU
+
+# --- calibration -----------------------------------------------------------
+calibration: temperature      # fit on val only; isotonic is fit as a comparison
+
+# --- data ------------------------------------------------------------------
+data:
+  train_files:
+    - data/factcheck/distill_full.jsonl     # 7000 Jev soft-target rows, all split=train
+    - data/factcheck/ground_truth.jsonl     # 1589 train + 199 val (+199 test, dropped by the runner)
+  # No label_source filter: this arm trains on ground_truth AND jev-1.13.0 rows.
+  # eval_schemas.jsonl is NEVER listed here — held-out schemas, eval only.
+
+# Per-source weight multipliers, applied on top of row.weight.
+# Rationale: human labels are the truth signal (2.0), Jev soft targets carry
+# calibration (1.0), generic synthetic is weakest (0.5).
+# Mechanism note: source_weights key on row.source, not label_source — so the
+# 6301 distill_full rows sourced from fever/vitaminc/scifact/climate_fever also
+# get 2.0 (domain weighting, the same convention as frozen configs/jev_clf.yaml);
+# only the 699 rows with source=jev_distill get 1.0.
+# climate_fever is listed explicitly: the frozen base config omits it, which
+# would silently fall back to weight 1.0.
+source_weights:
+  fever: 2.0
+  vitaminc: 2.0
+  scifact: 2.0
+  climate_fever: 2.0
+  jev_distill: 1.0
+  synthetic: 0.5

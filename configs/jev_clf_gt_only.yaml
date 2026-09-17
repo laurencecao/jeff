@@ -1,0 +1,41 @@
+# jev_clf gt_only arm — ground-truth-only ablation.
+# Answers: "does Jev distillation help, or does real data alone suffice?"
+# Same shape as configs/jev_clf.yaml; only the deltas differ. Consumed by
+# scripts/jev_clf_train_arm.py (data.label_source filters the loaded rows).
+
+# --- model -----------------------------------------------------------------
+encoder_name: sentence-transformers/all-MiniLM-L6-v2
+freeze_encoder: true          # only the attention/scorer head trains
+head_width: 64                # narrower head than the shared default (256)
+heads: 4
+dropout: 0.1
+max_length: 512
+
+# --- optimization ----------------------------------------------------------
+lr: 0.001
+weight_decay: 0.01
+epochs: 15                    # modest; early stopping on val loss anyway
+batch_size: 16                # <= 32 per arm spec; M3 Max / MPS
+warmup_steps: 20
+patience: 5
+seed: 42
+device: auto                  # auto = MPS if available else CPU
+
+# --- calibration -----------------------------------------------------------
+calibration: temperature      # fit on val only; isotonic is fit as a comparison
+
+# --- data ------------------------------------------------------------------
+data:
+  train_files:
+    - data/factcheck/ground_truth.jsonl
+  label_source: ground_truth  # gt_only arm: real labels only, no distill rows
+
+# Per-source weight multipliers, applied on top of row.weight.
+# jev_distill is 0.0: even if a distill row were loaded it would contribute
+# no loss — this arm sees ground truth only.
+source_weights:
+  fever: 2.0
+  vitaminc: 2.0
+  scifact: 2.0
+  climate_fever: 2.0
+  jev_distill: 0.0
