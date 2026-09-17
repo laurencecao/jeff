@@ -1,0 +1,59 @@
+# jev_clf LoRA arm — RETRAIN EXPERIMENT: upweight human labels.
+#
+# Hypothesis: 7000 of the 9119 training targets come from live Jev, which is
+# only ~0.80 accurate on this data. So most of the training signal imitates a
+# teacher that is wrong about one case in five. The baseline run left
+# `label_source_weights` uniform, treating the noisy teacher rows as equal to
+# the 2119 human-labelled rows. This run upweights human labels to compensate.
+#
+# Everything else is IDENTICAL to the baseline run (same base model, same LoRA
+# shape, same optimiser/schedule/seed, same data files) so the comparison is
+# one-variable: only `label_source_weights` and the output directory differ.
+#
+# Prompt contract (must stay aligned with scripts/jev_clf_lm_eval.py):
+#   prompt_format: eval renders each row as the eval harness does — eval SYSTEM
+#   prompt + (question_to_text + State) + "\n\nVerdict:" under the chat template
+#   with add_generation_prompt=True; completion_leading_space supervises
+#   " <label>"; loss is on the assistant turn only, everything else masked -100.
+
+# --- model -----------------------------------------------------------------
+model: Qwen/Qwen2.5-1.5B-Instruct
+dtype: bfloat16
+max_length: 2048
+gradient_checkpointing: true
+
+# --- LoRA ------------------------------------------------------------------
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+# --- optimization ----------------------------------------------------------
+optim:
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 2
+  batch_size: 8                     # logits over 152k vocab dominate memory
+  grad_accum: 4                     # effective batch = 32
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  seed: 42
+
+# --- data ------------------------------------------------------------------
+data:
+  train: data/factcheck/sft_train.jsonl   # 9119 rows (7000 jev-distill + 2119 gt)
+  val: data/factcheck/sft_val.jsonl       # 199 gt val rows, loss tracking only
+  prompt_format: eval
+  completion_leading_space: true
+  # THE ONE VARIABLE vs the baseline run: human truth outweights teacher noise.
+  label_source_weights:
+    ground_truth: 3.0
+    jev-1.13.0: 1.0
+
+# --- output ----------------------------------------------------------------
+out_dir: artifacts/jev_clf/lora_hw
+mlflow:
+  uri: http://127.0.0.1:5001
+  experiment: jev-clf
+  run_name: jev-clf-lora-hw
