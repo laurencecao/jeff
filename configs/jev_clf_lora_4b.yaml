@@ -1,0 +1,53 @@
+# jev_clf LoRA arm — RETRAIN EXPERIMENT: bigger base model.
+#
+# Hypothesis: capacity is the binding constraint, not teacher noise or the
+# decision rule. Evidence: zero-shot accuracy scales steeply with model size on
+# this exact task — Qwen2.5-0.5B 0.412, Qwen2.5-1.5B 0.583,
+# Qwen3-4B-Instruct-2507 0.724 on val — and our 1.5B LoRA reaches 0.759.
+# So a 4B student is the largest expected single jump.
+#
+# ONE VARIABLE vs the baseline run: the base model (Qwen2.5-1.5B-Instruct ->
+# Qwen3-4B-Instruct-2507). Data, label weights (uniform), LoRA shape, optimiser,
+# schedule, seed and prompt contract are all identical. Batch geometry is
+# adjusted only to fit 4B in 40GB (batch 4 x grad_accum 8 = same effective 32).
+
+# --- model -----------------------------------------------------------------
+model: Qwen/Qwen3-4B-Instruct-2507
+dtype: bfloat16
+max_length: 2048
+gradient_checkpointing: true
+
+# --- LoRA ------------------------------------------------------------------
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+# --- optimization ----------------------------------------------------------
+optim:
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 2
+  batch_size: 4                     # 4B: keep logits over 152k vocab inside 40GB
+  grad_accum: 8                     # effective batch = 32, same as baseline
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  seed: 42
+
+# --- data ------------------------------------------------------------------
+data:
+  train: data/factcheck/sft_train.jsonl   # 9119 rows (7000 jev-distill + 2119 gt)
+  val: data/factcheck/sft_val.jsonl       # 199 gt val rows, loss tracking only
+  prompt_format: eval
+  completion_leading_space: true
+  # UNIFORM, exactly as in the baseline run: the human-label-upweighting
+  # experiment was neutral, so leaving it in would confound this comparison.
+  label_source_weights: {}
+
+# --- output ----------------------------------------------------------------
+out_dir: artifacts/jev_clf/lora_4b
+mlflow:
+  uri: http://127.0.0.1:5001
+  experiment: jev-clf
+  run_name: jev-clf-lora-4b
