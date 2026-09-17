@@ -1,21 +1,34 @@
-# Post-hoc inference knobs for the jev_clf autoresearch loop.
+# Tunable decision rule for the jev_clf Jev replacement.
 #
-# Editing THIS FILE is a first-class loop iteration: it changes the decision
-# rule without retraining, so a candidate is measurable in one harness run
-# (~3 min on this Mac) instead of one Colab training run (~15 min + upload).
+# THIS FILE IS THE AUTORESEARCH LOOP'S EDITABLE SURFACE (along with scripts/
+# and jev_clf/). NOTE: the autoresearch session's discard/rollback acts on the
+# SESSION repo, not on this one — experimental edits here must be reverted by
+# hand when a run is discarded.
 #
-# The label posterior is:  softmax(logits / temperature)  * label_bias, then
-# renormalised. `label_bias` is the cheap lever for the observed bias where the
-# model over-predicts `supported` (23 of 48 test errors are false `supported`).
+# The posterior over labels is built in probability space:
+#     ensemble over wordings -> p ** (1/temperature) -> p * label_bias -> norm
 #
-# Anything that needs the model itself to change (different base, more data,
-# class-weighted loss) is NOT a config change — it requires a retrain, and
-# must be run as an explicit experiment rather than a config edit.
+# Levers:
+#   ensemble_schemas  average the label distribution over question wordings.
+#                     TESTED: hurts badly (accuracy -3 rows, agreement
+#                     0.769 -> 0.374). Left off.
+#   temperature       >1 softens the posterior; changes ECE, not argmax.
+#   label_bias        multiplicative prior correction. TESTED by offline sweep
+#                     over the val probabilities: identity is optimal, every
+#                     other combination LOSES a row. So the over-claiming
+#                     `supported` errors are confidently wrong, not a threshold
+#                     artefact, and cannot be fixed post-hoc.
+#   adapter           which trained adapter to evaluate (for retrain A/Bs).
+#
+# Retraining is NOT expressible here: it needs a Colab run and must be a
+# deliberate experiment.
 
-readout: first_token        # first_token | sequence
+readout: first_token        # first_token | sequence (readout is fixed in code)
 max_length: 2048
-temperature: 1.0            # >1 softens the posterior (affects ECE)
-label_bias:                 # multiplicative prior correction per label
+temperature: 1.0
+label_bias:
   supported: 1.0
   refuted: 1.0
   not_enough_info: 1.0
+ensemble_schemas: false
+adapter: artifacts/jev_clf/lora_lm   # baseline adapter
