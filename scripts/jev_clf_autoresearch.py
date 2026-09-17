@@ -120,7 +120,8 @@ def main() -> None:
     from peft import PeftModel
 
     model = PeftModel.from_pretrained(model, str(adapter_path)).to(device).eval()
-    tag = f"{BASE_MODEL}+{adapter_path.name}"
+    hidden = getattr(model.config, "hidden_size", None)
+    tag = f"{base_model_name}+{adapter_path.name}"
 
     max_length = int(cfg.get("max_length", 2048))
     temperature = float(cfg.get("temperature", 1.0) or 1.0)
@@ -199,7 +200,8 @@ def main() -> None:
     print(f"ASI bar=jev-1.13.0_val_accuracy:{BAR_ACCURACY}")
     print(f"ASI gap_to_jev={gap:+.4f}")
     print(f"ASI device={device}")
-    print(f"ASI base_model={BASE_MODEL}")
+    print(f"ASI base_model={base_model_name}")
+    print(f"ASI hidden_size={hidden}")
     print(f"ASI adapter={adapter_path.name}")
     print(f"ASI temperature={temperature}")
     print(f"ASI ensemble_schemas={cfg.get('ensemble_schemas')}")

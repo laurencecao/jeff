@@ -1,0 +1,54 @@
+{
+  "model": "Qwen/Qwen3-4B-Instruct-2507+lora_4b",
+  "readout": "first_token",
+  "split": "test",
+  "ground_truth": {
+    "n": 199,
+    "labels": [
+      "not_enough_info",
+      "refuted",
+      "supported"
+    ],
+    "accuracy": 0.7738693467336684,
+    "macro_f1": 0.748617255317423,
+    "per_label": {
+      "not_enough_info": {
+        "precision": 0.6086956521739131,
+        "recall": 0.6222222222222222,
+        "f1": 0.6153846153846154,
+        "support": 45
+      },
+      "refuted": {
+        "precision": 0.86,
+        "recall": 0.7413793103448276,
+        "f1": 0.7962962962962963,
+        "support": 58
+      },
+      "supported": {
+        "precision": 0.8058252427184466,
+        "recall": 0.8645833333333334,
+        "f1": 0.8341708542713568,
+        "support": 96
+      }
+    },
+    "ece": 0.07681328747140698,
+    "brier": 0.3111933978733334,
+    "confusion": {
+      "not_enough_info": {
+        "not_enough_info": 28,
+        "refuted": 5,
+        "supported": 12
+      },
+      "refuted": {
+        "not_enough_info": 7,
+        "refuted": 43,
+        "supported": 8
+      },
+      "supported": {
+        "not_enough_info": 11,
+        "refuted": 2,
+        "supported": 83
+      }
+    }
+  }
+}
