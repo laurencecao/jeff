@@ -1,0 +1,93 @@
+{
+  "model": "jev-1.13.0",
+  "state": {
+    "orstein_method": {
+      "what_it_is": "Corrective Ornstein: a post-training path that turns a reflection pattern into an evidence-gated habit.",
+      "core_finding": "The behavioral update is preference training (DPO) over decision-level pairs, NOT another full SFT pass.",
+      "policy_states": [
+        "pre-action: check a concrete risk vs proceeding without checking",
+        "verification: call the real verifier vs declaring Done",
+        "repair: change the failed candidate and cite the failed check vs retry unchanged",
+        "escalation: search after a failed local repair vs guess from memory",
+        "termination: return the receipt-bound answer after a pass vs verifying forever"
+      ],
+      "authorization_rule": "DONE is authorized by the compiler, not by a sentence in the teacher's reasoning. A passing receipt must have evidence_type test_result/tool_result/execution; an LLM judge cannot certify that code ran.",
+      "quantitative_parts": {
+        "drift_diffusion": "Drift Diffusion Model (DDM) evidence accumulation over reasoning traces: per-segment evidence trajectories, final evidence value, curriculum bins, per-step loss weights.",
+        "auc": "An audit ROC-AUC separating accepted from rejected pipeline behavior, described by the author as a STRUCTURAL diagnostic, explicitly not a substitute for held-out human semantic labels.",
+        "uhlenbeck": "The Ornstein-Uhlenbeck framing is used for conditional length / position / right-tail SHAPE of reasoning traces; profiles keep raw empirical donor vectors rather than fitting a Gaussian."
+      },
+      "guards": [
+        "immutable SHA-256 plan ids",
+        "fail-closed resume",
+        "transitive grouping so duplicate problems cannot cross splits"
+      ]
+    },
+    "our_work": {
+      "task": "Given a claim and its retrieved evidence passages, output a calibrated distribution over supported / refuted / not_enough_info. Text-conditioned: the label set and each label's definition arrive in the prompt at call time.",
+      "model": "LoRA adapter (4.36M params, 0.28%) on Qwen2.5-1.5B-Instruct; classification read from the model's own next-token distribution over label tokens, one forward pass, no generation loop.",
+      "measured": {
+        "ours_test_n199": {
+          "accuracy": 0.759,
+          "macro_f1": 0.738,
+          "ece": 0.111
+        },
+        "live_jev_test_n199": {
+          "accuracy": 0.799,
+          "macro_f1": 0.791,
+          "ece": 0.114
+        },
+        "zero_shot_nli_test_n199": {
+          "accuracy": 0.668,
+          "macro_f1": 0.658,
+          "ece": 0.277
+        }
+      },
+      "uncertainty": "n=199 gives a 95% CI of roughly +/- 0.056; ours [0.695, 0.813] and Jev [0.738, 0.849] overlap almost entirely, so 'ours is 4 points behind Jev' is NOT statistically resolvable at this sample size.",
+      "training_data": "9119 examples: 7000 labelled by live Jev (soft distributions), 2119 human-labelled (FEVER / VitaminC / SciFact / Climate-FEVER).",
+      "error_structure_test": "23 of 48 errors are false 'supported': 13 where truth was not_enough_info, 10 where truth was refuted. Recall 0.844 supported / 0.707 refuted / 0.644 not_enough_info.",
+      "three_negatives_already_tested": [
+        "per-label prior bias: identity is optimal, every other setting loses a row, so the over-claiming errors are confidently wrong and not a threshold artifact",
+        "schema-wording TTA (average over wordings): accuracy -3 rows and agreement collapsed 0.769 -> 0.374",
+        "human-label upweighting 3x on retrain: LM loss improved but task accuracy -1 row (within noise)"
+      ],
+      "teacher_quality": "Live Jev is only ~0.80 accurate on this data, so 7000 of 9119 training targets imitate a teacher wrong about one case in five.",
+      "constraint": "The test split is sealed; the loop optimizes val accuracy only.",
+      "no_tool_calls": "This task has no verifier, no web search, no code execution. A single forward pass produces the decision; there is nothing to repair or escalate."
+    }
+  },
+  "answers": {
+    "auth_rule_transfers": 0.34,
+    "ddm_transfers": {
+      "score": 0.03,
+      "probabilities": {
+        "0": 0.98,
+        "1": 0.02,
+        "2": 0.0,
+        "3": 0.0
+      }
+    },
+    "auc_transfers": 0.48,
+    "headline_supported": 0.89,
+    "next_lever": {
+      "choice": "evidence_gated_labels",
+      "probabilities": {
+        "dpo_decision_pairs": 0.16,
+        "bigger_model": 0.02,
+        "more_human_data": 0.23,
+        "evidence_gated_labels": 0.43,
+        "abstain_engineering": 0.16
+      }
+    },
+    "overclaim_fix": 0.79,
+    "honest_report": {
+      "score": 1.14,
+      "probabilities": {
+        "0": 0.03,
+        "1": 0.8,
+        "2": 0.17
+      }
+    }
+  },
+  "usage": "Usage(input_tokens=2168, output_tokens=184)"
+}

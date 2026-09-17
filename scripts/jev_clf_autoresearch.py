@@ -113,8 +113,9 @@ def main() -> None:
     if not adapter_path.exists():
         raise SystemExit(f"FAILED: adapter not found at {adapter_path}")
 
-    tok = AutoTokenizer.from_pretrained(BASE_MODEL)
-    model = AutoModelForCausalLM.from_pretrained(BASE_MODEL, dtype=dtype).to(device)
+    base_model_name = cfg.get("base_model") or BASE_MODEL
+    tok = AutoTokenizer.from_pretrained(base_model_name)
+    model = AutoModelForCausalLM.from_pretrained(base_model_name, dtype=dtype).to(device)
 
     from peft import PeftModel
 

@@ -31,4 +31,5 @@ label_bias:
   refuted: 1.0
   not_enough_info: 1.0
 ensemble_schemas: false
-adapter: artifacts/jev_clf/lora_lm   # baseline adapter (loop reference)
+adapter: artifacts/jev_clf/lora_4b   # 4B retrain (capacity hypothesis)
+base_model: Qwen/Qwen3-4B-Instruct-2507   # must match the adapter's base
