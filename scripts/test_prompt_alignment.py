@@ -11,6 +11,7 @@ contains, instead of trusting that two functions render the same thing.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -24,7 +25,7 @@ from jev_clf.model import state_to_text  # noqa: E402
 from scripts.jev_clf_lm_eval import SYSTEM, build_inputs, label_variants  # noqa: E402
 from scripts.jev_clf_lora_train import build_example  # noqa: E402
 
-TOKENIZER = "Qwen/Qwen2.5-1.5B-Instruct"
+TOKENIZER = os.environ.get("JEVCLF_TOKENIZER", "Qwen/Qwen2.5-1.5B-Instruct")
 CFG = {
     "max_length": 2048,
     "data": {"prompt_format": "eval", "completion_leading_space": True},
