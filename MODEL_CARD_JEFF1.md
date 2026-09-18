@@ -57,9 +57,11 @@ Two splits, both evaluated the same way (details in *How measured*):
 | Scale (human labels) | 9,730 | **Jeff 1** | **0.8183** | **0.0807** |
 | Scale (human labels) | 9,730 | live Jev 1.13.0 | 0.8283 | 0.0932 |
 
-The **val split (n=199) is sealed**: it is the `split='test'` subset of
-`data/factcheck/ground_truth.jsonl` (1,987 rows total), ~500 rows each from
-vitaminc, scifact, climate_fever, and fever. The **scale split (n=9,730)** is
+The **val split (n=199) is sealed**: it is the `split='val'` subset of
+`data/factcheck/ground_truth.jsonl` (1,987 rows total: 1,589 `train`, 199 `val`,
+199 `test`), ~500 rows each from vitaminc, scifact, climate_fever, and fever.
+The 199 `split='test'` rows are a separate sealed holdout and are not the rows
+scored in the table. The **scale split (n=9,730)** is
 `data/factcheck/eval_large.jsonl`, all rows human-labeled, with source counts
 vitaminc 3,979, fever 3,910, scifact 982, climate_fever 859.
 

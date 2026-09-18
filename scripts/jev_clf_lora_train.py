@@ -238,13 +238,15 @@ def masked_lm_loss(
         # Position p is predicted by logits index p-1.
         rows = soft_mask > 0
         idx = rows.nonzero(as_tuple=True)[0]
-        # Teacher ids are per-row; pad class slots (id 0) are never read because
-        # every real row's distribution is dense over its own label space.
         pos = (soft_pos[idx] - 1).clamp(min=0)
-        sel_logits = logits[idx].float().gather(
-            1, pos.view(-1, 1, 1).expand(-1, 1, logits.size(-1))
-        ).squeeze(1)
-        lab_logits = sel_logits.gather(1, soft_ids[idx].clamp(min=0))
+        # Index straight down to [n_rows, n_labels]. Do NOT slice
+        # logits[idx].float() -- that materialises a full [batch, seq, vocab]
+        # copy and upcasts it to fp32 (~8 GiB here), which OOMs the MPS pool.
+        # Advanced indexing over (row, position, label-token) builds only the
+        # handful of logits this term actually reads.
+        lab_logits = logits[
+            idx.view(-1, 1), pos.view(-1, 1), soft_ids[idx].clamp(min=0)
+        ].float()
         logp = torch.log_softmax(lab_logits, dim=-1)
         teacher = soft[idx]
         # KL(teacher || student). Exact teacher zeros contribute nothing, but

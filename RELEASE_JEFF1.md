@@ -34,10 +34,19 @@ Additional metrics for Jeff 1 on the sealed validation split:
 ### The validation split is sealed
 
 The validation split is the sealed holdout: 199 questions carried in
-`data/factcheck/ground_truth.jsonl` with `split='test'` (the file holds 1,987 rows
-total). The ground-truth file is assembled from four source benchmarks —
-vitaminc, scifact, climate_fever, fever — at roughly 500 labels per source.
-No tuning reported in this note used the sealed validation target.
+`data/factcheck/ground_truth.jsonl` with `split='val'` (the file holds 1,987 rows:
+1,589 `train`, 199 `val`, 199 `test`). The 199 `split='test'` rows are a
+*different* sealed holdout and are not the rows scored above; the metrics in the
+table come from the 199 `split='val'` rows, which is what the loop harness
+measures and what the recorded per-row predictions
+(`data/factcheck/preds_autoresearch_val.jsonl`) cover. Note the wording trap: the
+prediction rows carry no `split` field, and the eval entrypoint accepts
+`--split test`, so an earlier draft of this note mislabelled the val split as
+`test`. The row IDs are what identify the split; they are all `val`.
+
+The ground-truth file is assembled from four source benchmarks — vitaminc,
+scifact, climate_fever, fever — at roughly 500 labels per source. No tuning
+reported in this note used the sealed validation target.
 
 ### The scale split
 

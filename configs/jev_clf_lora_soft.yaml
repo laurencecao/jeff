@@ -32,8 +32,8 @@ optim:
   lr: 0.0001
   weight_decay: 0.0
   epochs: 2
-  batch_size: 4                     # 4B: keep logits over 152k vocab inside 40GB
-  grad_accum: 8                     # effective batch = 32, same as baseline
+  batch_size: 2                     # 36GB unified-RAM Mac: 4x2048 OOMs at step 2; 2x2048 fits
+  grad_accum: 16                    # effective batch = 32, same as baseline
   warmup_ratio: 0.03
   max_grad_norm: 1.0
   seed: 42
