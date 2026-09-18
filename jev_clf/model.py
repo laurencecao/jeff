@@ -25,7 +25,15 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoTokenizer
 
-from .schema import Questions, Question, label_space, question_to_text
+from .schema import (
+    ChoiceQuestion,
+    NoulQuestion,
+    Questions,
+    Question,
+    ScoreQuestion,
+    label_space,
+    question_to_text,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -68,10 +76,29 @@ def option_texts(question: Question) -> list[str]:
 
     Per-option text = the question's instructions plus that label's own line
     from ``question_to_text`` (``"label: definition"`` or bare ``label``).
+
+    The label/definition lines are matched by LABEL NAME, not by splitting the
+    rendered text on newlines: instructions are prose and may contain wrapped
+    newlines of their own, and a line-split assumed every line after the first
+    was a label — which produced 6 option texts for 3 labels on every row and
+    made the head's logit width disagree with the target.
     """
-    lines = question_to_text(question).split("\n")
-    instructions, label_lines = lines[0], lines[1:]
-    return [f"{instructions}\n{line}" for line in label_lines]
+    instructions = question.instructions.strip()
+    out = []
+    for label in label_space(question):
+        definition = None
+        if isinstance(question, NoulQuestion):
+            definition = (question.criteria or {}).get(label)
+        elif isinstance(question, ChoiceQuestion):
+            definition = question.criteria.get(label)
+        elif isinstance(question, ScoreQuestion):
+            idx = int(label)
+            definition = (
+                question.criteria[idx] if idx < len(question.criteria) else None
+            )
+        line = f"{label}: {definition}" if definition else label
+        out.append(f"{instructions}\n{line}")
+    return out
 
 
 # ---------------------------------------------------------------------------
