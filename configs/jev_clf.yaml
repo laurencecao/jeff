@@ -1,5 +1,5 @@
-# jeff — OptionScorer training config.
-# Consumed by jeff.train (train() takes this as a dict; the CLI loads this
+# jev_clf — OptionScorer training config.
+# Consumed by jev_clf.train (train() takes this as a dict; the CLI loads this
 # file). Paths are relative to the repo root.
 
 # --- model -----------------------------------------------------------------

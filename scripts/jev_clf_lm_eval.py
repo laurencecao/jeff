@@ -7,8 +7,8 @@ IS the language model, which is what keeps this text-conditioned (a label set of
 a different size or wording still works, because it arrives in the prompt).
 
 Usage:
-    uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct
-    uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct \
+    uv run python -m scripts.jev_clf_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct
+    uv run python -m scripts.jev_clf_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct \
         --adapter artifacts/jeff/lora_lm --agreement
 
 Readout variants:
@@ -30,10 +30,10 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.eval import agreement as agreement_metric  # noqa: E402
-from jeff.eval import ground_truth_metrics  # noqa: E402
-from jeff.model import state_to_text  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.eval import agreement as agreement_metric  # noqa: E402
+from jev_clf.eval import ground_truth_metrics  # noqa: E402
+from jev_clf.model import state_to_text  # noqa: E402
 
 SYSTEM = (
     "You are a fact-checking classifier. You are given a claim and the evidence "

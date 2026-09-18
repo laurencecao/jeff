@@ -3,7 +3,7 @@
 This is the plot TypeSafe never published: measured calibration on a dataset
 with human ground truth, far from their four launch workflows.
 
-    uv run python -m scripts.jeff_calibration_plot
+    uv run python -m scripts.jev_clf_calibration_plot
 """
 
 from __future__ import annotations
@@ -20,8 +20,8 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.eval import reliability_bins  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.eval import reliability_bins  # noqa: E402
 
 FILES = [
     ("ours (4B + LoRA), n=9730", ROOT / "results/lm_eval_4b_multi_large.json"),

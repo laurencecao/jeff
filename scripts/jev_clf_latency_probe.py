@@ -9,7 +9,7 @@ The OptionScorer encodes the state once and scores every option as a query, so
 it SHOULD be flat. This measures it before we invest in retraining it with a
 real language-model encoder.
 
-    uv run python -m scripts.jeff_latency_probe
+    uv run python -m scripts.jev_clf_latency_probe
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.client import Choice, Noul, Score  # noqa: E402
-from jeff.model import OptionScorer  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.client import Choice, Noul, Score  # noqa: E402
+from jev_clf.model import OptionScorer  # noqa: E402
 
 KS = (1, 2, 4, 8, 16)
 REPS = 5

@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-from jeff.schema import (
+from jev_clf.schema import (
     FACTCHECK_LABELS,
     FACTCHECK_QUESTION_ID,
     DecisionRow,

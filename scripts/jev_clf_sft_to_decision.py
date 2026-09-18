@@ -5,7 +5,7 @@ SFT rows carry the prompt as chat messages and the label as text; the trainer
 wants a `DecisionRow` with a real `state` and a target distribution. The state is
 recovered from the ground-truth file via each row's `meta.gt_row_id` provenance.
 
-    uv run python -m scripts.jeff_sft_to_decision
+    uv run python -m scripts.jev_clf_sft_to_decision
 """
 
 from __future__ import annotations
@@ -18,8 +18,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.model import state_to_text  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.model import state_to_text  # noqa: E402
 
 PAIRS = [
     ("data/factcheck/sft_train_multi.jsonl", "data/factcheck/sft_train_multi_state.jsonl"),

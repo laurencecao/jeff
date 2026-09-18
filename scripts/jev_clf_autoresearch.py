@@ -9,7 +9,7 @@ self-fulfilling number.
 
 Reference bar (val, n=199): live Jev 1.13.0 = 0.769 accuracy, ECE 0.114.
 
-The decision rule is read from `configs/jeff_infer.yaml` (or
+The decision rule is read from `configs/jev_clf_infer.yaml` (or
 $JEVCLF_INFER_CONFIG), so a candidate is measurable in one harness run instead
 of a retrain. The rule operates in PROBABILITY space:
 
@@ -19,7 +19,7 @@ of a retrain. The rule operates in PROBABILITY space:
 
 Deterministic: fixed seed, offline, greedy evaluation.
 
-    uv run python -m scripts.jeff_autoresearch
+    uv run python -m scripts.jev_clf_autoresearch
 """
 
 from __future__ import annotations
@@ -37,15 +37,15 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.eval import agreement as agreement_metric  # noqa: E402
-from jeff.eval import ground_truth_metrics  # noqa: E402
-from scripts.jeff_lm_eval import build_inputs, label_variants  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.eval import agreement as agreement_metric  # noqa: E402
+from jev_clf.eval import ground_truth_metrics  # noqa: E402
+from scripts.jev_clf_lm_eval import build_inputs, label_variants  # noqa: E402
 
 BASE_MODEL = os.environ.get("JEVCLF_BASE", "Qwen/Qwen2.5-1.5B-Instruct")
 ADAPTER = os.environ.get("JEVCLF_ADAPTER", str(ROOT / "artifacts/jeff/lora_lm"))
 INFER_CONFIG = Path(
-    os.environ.get("JEVCLF_INFER_CONFIG", str(ROOT / "configs" / "jeff_infer.yaml"))
+    os.environ.get("JEVCLF_INFER_CONFIG", str(ROOT / "configs" / "jev_clf_infer.yaml"))
 )
 SPLIT = "val"
 BAR_ACCURACY = 0.769  # live Jev 1.13.0 on this split (n=199)
@@ -81,7 +81,7 @@ def ensemble_questions(cfg: dict, default_question) -> list:
     if not setting:
         return [default_question]
 
-    from jeff.gen import _SCHEMAS, _build_question  # noqa: PLC0415
+    from jev_clf.gen import _SCHEMAS, _build_question  # noqa: PLC0415
 
     if setting == "all":
         wanted = [s["id"] for s in _SCHEMAS if s["kind"] == "choice"]
@@ -208,7 +208,7 @@ def main() -> None:
     print(f"ASI label_bias={json.dumps(cfg.get('label_bias') or {})}")
     print(f"ASI beats_bar={gt['accuracy'] >= BAR_ACCURACY}")
 
-    (ROOT / "results" / "jeff_autoresearch_last.json").write_text(
+    (ROOT / "results" / "jev_clf_autoresearch_last.json").write_text(
         json.dumps(
             {
                 "model": tag,

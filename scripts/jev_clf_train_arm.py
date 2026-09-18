@@ -2,11 +2,11 @@
 
 Examples (from the repo root):
 
-    uv run python -m scripts.jeff_train_arm --arm gt_only \
-        --config configs/jeff_gt_only.yaml
+    uv run python -m scripts.jev_clf_train_arm --arm gt_only \
+        --config configs/jev_clf_gt_only.yaml
 
-    uv run python -m scripts.jeff_train_arm --arm distill_full \
-        --config configs/jeff_distill_full.yaml \
+    uv run python -m scripts.jev_clf_train_arm --arm distill_full \
+        --config configs/jev_clf_distill_full.yaml \
         --data data/factcheck/ground_truth.jsonl \
         --data data/factcheck/distill_full.jsonl \
         --label-source ""          # no label_source filter
@@ -46,10 +46,10 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jeff.eval import ground_truth_metrics, reliability_bins  # noqa: E402
-from jeff.model import OptionScorer  # noqa: E402
-from jeff.schema import PredictionRow, read_rows, write_predictions  # noqa: E402
-from jeff.train import ARTIFACTS, MLFLOW_EXPERIMENT, MLFLOW_URI, train  # noqa: E402
+from jev_clf.eval import ground_truth_metrics, reliability_bins  # noqa: E402
+from jev_clf.model import OptionScorer  # noqa: E402
+from jev_clf.schema import PredictionRow, read_rows, write_predictions  # noqa: E402
+from jev_clf.train import ARTIFACTS, MLFLOW_EXPERIMENT, MLFLOW_URI, train  # noqa: E402
 
 
 def _peak_rss_gb() -> float:

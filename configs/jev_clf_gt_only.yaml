@@ -1,7 +1,7 @@
-# jeff gt_only arm — ground-truth-only ablation.
+# jev_clf gt_only arm — ground-truth-only ablation.
 # Answers: "does Jev distillation help, or does real data alone suffice?"
-# Same shape as configs/jeff.yaml; only the deltas differ. Consumed by
-# scripts/jeff_train_arm.py (data.label_source filters the loaded rows).
+# Same shape as configs/jev_clf.yaml; only the deltas differ. Consumed by
+# scripts/jev_clf_train_arm.py (data.label_source filters the loaded rows).
 
 # --- model -----------------------------------------------------------------
 encoder_name: sentence-transformers/all-MiniLM-L6-v2

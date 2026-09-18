@@ -18,7 +18,7 @@ import importlib
 import time
 from typing import Any, Iterable
 
-from jeff.schema import (
+from jev_clf.schema import (
     FACTCHECK_LABELS,
     ChoiceQuestion,
     DecisionRow,
@@ -108,7 +108,7 @@ class JevClassifier:
     ) -> None:
         if teacher is None:
             try:
-                from jeff.jev import JevTeacher
+                from jev_clf.jev import JevTeacher
             except ImportError as exc:
                 raise ImportError(
                     "jeff.jev is not available yet — the JevTeacher slice "

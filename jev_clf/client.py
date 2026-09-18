@@ -42,11 +42,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from scripts.jeff_lm_eval import build_inputs, label_variants  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from scripts.jev_clf_lm_eval import build_inputs, label_variants  # noqa: E402
 
 DEFAULT_BASE = "Qwen/Qwen3-4B-Instruct-2507"
-DEFAULT_ADAPTER = str(ROOT / "artifacts/jeff/lora_4b")
+DEFAULT_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b")
 
 
 # --------------------------------------------------------------------------
@@ -130,7 +130,10 @@ class SystemOneClient:
         self.max_length = max_length
 
         self.tokenizer = AutoTokenizer.from_pretrained(base_model)
-        model = AutoModelForCausalLM.from_pretrained(base_model, dtype=self.dtype)
+        # Load to CPU first and let .to() move the real weights. Loading with
+        # dtype=bf16 and no device_map can leave a meta tensor when memory is
+        # tight, and .to() then raises "Cannot copy out of meta tensor".
+        model = AutoModelForCausalLM.from_pretrained(base_model, dtype=self.dtype, device_map="cpu")
         if adapter:
             from peft import PeftModel
 

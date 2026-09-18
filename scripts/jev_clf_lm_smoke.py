@@ -21,9 +21,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.eval import ground_truth_metrics  # noqa: E402
-from jeff.model import state_to_text  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.eval import ground_truth_metrics  # noqa: E402
+from jev_clf.model import state_to_text  # noqa: E402
 
 MODEL_ID = "Qwen/Qwen2.5-0.5B"
 SPLIT = "val"

@@ -39,8 +39,8 @@ from __future__ import annotations
 import random
 from typing import Any, Iterator
 
-from jeff.jev import JevTeacher
-from jeff.schema import (
+from jev_clf.jev import JevTeacher
+from jev_clf.schema import (
     FACTCHECK_LABELS,
     FACTCHECK_QUESTION_ID,
     DecisionRow,

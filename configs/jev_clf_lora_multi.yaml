@@ -1,4 +1,4 @@
-# jeff LoRA arm — RETRAIN: all three primitives.
+# jev_clf LoRA arm — RETRAIN: all three primitives.
 #
 # Hypothesis: the 4B arm is accurate on Choice (test 0.774) but its Noul and
 # Score outputs are untrained. All six existing training schemas are Choice; the
@@ -7,7 +7,7 @@
 # (0.25 per level) with no signal, while Jev returns a real graded answer.
 #
 # ONE VARIABLE vs the 4B baseline arm: the training file now includes
-# teacher-labelled Noul and Score rows (scripts/jeff_multiprimitive_data.py)
+# teacher-labelled Noul and Score rows (scripts/jev_clf_multiprimitive_data.py)
 # on top of the identical Choice data. Base model, LoRA shape, optimiser,
 # schedule, seed and prompt contract are unchanged.
 #
@@ -41,7 +41,7 @@ optim:
 # --- data ------------------------------------------------------------------
 data:
   # sft_train.jsonl (9119 Choice rows) + sft_multi.jsonl (Noul/Score rows),
-  # concatenated by scripts/jeff_sft_data.py --merge.
+  # concatenated by scripts/jev_clf_sft_data.py --merge.
   train: data/factcheck/sft_train_multi.jsonl
   val: data/factcheck/sft_val.jsonl
   prompt_format: eval
@@ -49,7 +49,7 @@ data:
   label_source_weights: {}
 
 # --- output ----------------------------------------------------------------
-out_dir: artifacts/jeff/lora_4b_multi
+out_dir: artifacts/jev_clf/lora_4b_multi
 mlflow:
   uri: http://127.0.0.1:5001
   experiment: jev-clf

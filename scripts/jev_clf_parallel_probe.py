@@ -5,7 +5,7 @@ and that adding questions barely changes response time. That is a concrete,
 falsifiable statement about the API, so measure it: hold the state fixed, vary
 the number of questions, and record latency and token usage.
 
-    uv run python -m scripts.jeff_parallel_probe
+    uv run python -m scripts.jev_clf_parallel_probe
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 
 from typesafe_sdk import Choice, Noul, TypeSafeClient  # noqa: E402
 
-from jeff import schema as S  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
 
 MODEL = "jev-1.13.0"
 KS = (1, 2, 4, 8, 16)

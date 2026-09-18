@@ -1,6 +1,6 @@
 """CLI: train the full_minilm arm (ground truth + Jev distillation).
 
-Thin wrapper around scripts/jeff_train_arm.main() that adds the
+Thin wrapper around scripts/jev_clf_train_arm.main() that adds the
 full-arm-specific data assertions the generic runner does not make:
 
   * no ``split == "test"`` row id reaches the trainer (the runner also
@@ -12,7 +12,7 @@ full-arm-specific data assertions the generic runner does not make:
 
 Usage (from the repo root):
 
-    uv run python -m scripts.jeff_train_full
+    uv run python -m scripts.jev_clf_train_full
 
 Extra args are forwarded to the arm runner (e.g. ``--out``, ``--preds-out``).
 """
@@ -25,11 +25,11 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jeff.schema import read_rows  # noqa: E402
-from scripts.jeff_train_arm import main as arm_main  # noqa: E402
+from jev_clf.schema import read_rows  # noqa: E402
+from scripts.jev_clf_train_arm import main as arm_main  # noqa: E402
 
 ARM = "full_minilm"
-CONFIG = "configs/jeff_full_minilm.yaml"
+CONFIG = "configs/jev_clf_full_minilm.yaml"
 TRAIN_FILES = [
     "data/factcheck/distill_full.jsonl",
     "data/factcheck/ground_truth.jsonl",
@@ -71,7 +71,7 @@ def _preflight() -> None:
 def main() -> None:
     _preflight()
     sys.argv = [
-        "jeff_train_arm",
+        "jev_clf_train_arm",
         "--arm", ARM,
         "--config", CONFIG,
         *sys.argv[1:],

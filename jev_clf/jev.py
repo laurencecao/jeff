@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from jeff.schema import (
+from jev_clf.schema import (
     ChoiceQuestion,
     DecisionRow,
     NoulQuestion,

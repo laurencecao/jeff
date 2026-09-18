@@ -9,7 +9,7 @@ This builds teacher-labelled Noul and Score examples over the SAME ground-truth
 TRAIN states, using NEW schema wordings that do not collide with the held-out
 agreement schemas, so that adding them cannot leak into any evaluation.
 
-    uv run python -m scripts.jeff_multiprimitive_data --n-states 600
+    uv run python -m scripts.jev_clf_multiprimitive_data --n-states 600
 """
 
 from __future__ import annotations
@@ -25,10 +25,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.jev import JevTeacher  # noqa: E402
-from jeff.model import state_to_text  # noqa: E402
-from scripts.jeff_lm_eval import SYSTEM  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.jev import JevTeacher  # noqa: E402
+from jev_clf.model import state_to_text  # noqa: E402
+from scripts.jev_clf_lm_eval import SYSTEM  # noqa: E402
 
 OUT = ROOT / "data/factcheck/sft_multi.jsonl"
 

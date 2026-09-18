@@ -5,7 +5,7 @@ tokens — no head. This script teaches the model to put its mass there by
 supervising ONLY the assistant turn (" <label>" + <|im_end|>) of each SFT
 row; every prompt and padding position is masked to -100.
 
-Prompt contract (aligned with scripts/jeff_lm_eval.py):
+Prompt contract (aligned with scripts/jev_clf_lm_eval.py):
   * prompt_format: eval  — renders each row exactly as the eval harness:
     eval SYSTEM prompt + user text + "\\n\\nVerdict:" under the chat
     template with add_generation_prompt=True.
@@ -16,8 +16,8 @@ Prompt contract (aligned with scripts/jeff_lm_eval.py):
 
 Usage (from the repo root):
 
-    uv run python -m scripts.jeff_lora_train --config configs/jeff_lora.yaml
-    uv run python -m scripts.jeff_lora_train --config configs/jeff_lora.yaml \
+    uv run python -m scripts.jev_clf_lora_train --config configs/jev_clf_lora.yaml
+    uv run python -m scripts.jev_clf_lora_train --config configs/jev_clf_lora.yaml \
         --max-rows 64 --epochs 1 --out-dir /tmp/lora_smoke   # smoke test
 
 Never trains or evaluates on the test split.
@@ -43,7 +43,7 @@ sys.path.insert(0, str(ROOT))
 
 # The eval SYSTEM prompt is imported, not copied, so the training prompt can
 # never drift from the harness that scores the adapter.
-from scripts.jeff_lm_eval import SYSTEM as EVAL_SYSTEM  # noqa: E402
+from scripts.jev_clf_lm_eval import SYSTEM as EVAL_SYSTEM  # noqa: E402
 
 MLFLOW_URI = "http://127.0.0.1:5001"
 

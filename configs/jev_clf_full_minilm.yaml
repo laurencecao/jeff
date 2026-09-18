@@ -1,8 +1,8 @@
-# jeff full_minilm arm — ground truth + Jev distillation (the headline arm).
-# Mirrors configs/jeff_gt_only.yaml EXACTLY; the only intended differences
+# jev_clf full_minilm arm — ground truth + Jev distillation (the headline arm).
+# Mirrors configs/jev_clf_gt_only.yaml EXACTLY; the only intended differences
 # are the training data (distill_full + ground_truth) and source_weights.
-# Consumed by scripts/jeff_train_full.py, which delegates to
-# scripts/jeff_train_arm.py after the full-arm data assertions.
+# Consumed by scripts/jev_clf_train_full.py, which delegates to
+# scripts/jev_clf_train_arm.py after the full-arm data assertions.
 
 # --- model -----------------------------------------------------------------
 encoder_name: sentence-transformers/all-MiniLM-L6-v2
@@ -38,7 +38,7 @@ data:
 # calibration (1.0), generic synthetic is weakest (0.5).
 # Mechanism note: source_weights key on row.source, not label_source — so the
 # 6301 distill_full rows sourced from fever/vitaminc/scifact/climate_fever also
-# get 2.0 (domain weighting, the same convention as frozen configs/jeff.yaml);
+# get 2.0 (domain weighting, the same convention as frozen configs/jev_clf.yaml);
 # only the 699 rows with source=jev_distill get 1.0.
 # climate_fever is listed explicitly: the frozen base config omits it, which
 # would silently fall back to weight 1.0.

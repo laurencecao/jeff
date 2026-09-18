@@ -16,7 +16,7 @@ Two things are assessed:
   B. Our own jeff state of evidence — which lever is most likely to close
      the remaining gap, and whether our headline claims are supported.
 
-    uv run python -m scripts.jeff_assess_work
+    uv run python -m scripts.jev_clf_assess_work
 """
 
 from __future__ import annotations

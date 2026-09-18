@@ -1,7 +1,7 @@
-# Tunable decision rule for the jeff Jev replacement.
+# Tunable decision rule for the jev_clf Jev replacement.
 #
 # THIS FILE IS THE AUTORESEARCH LOOP'S EDITABLE SURFACE (along with scripts/
-# and jeff/). NOTE: the autoresearch session's discard/rollback acts on the
+# and jev_clf/). NOTE: the autoresearch session's discard/rollback acts on the
 # SESSION repo, not on this one — experimental edits here must be reverted by
 # hand when a run is discarded.
 #
@@ -31,5 +31,5 @@ label_bias:
   refuted: 1.0
   not_enough_info: 1.0
 ensemble_schemas: false
-adapter: artifacts/jeff/lora_4b   # 4B retrain (capacity hypothesis)
+adapter: artifacts/jev_clf/lora_4b   # 4B retrain (capacity hypothesis)
 base_model: Qwen/Qwen3-4B-Instruct-2507   # must match the adapter's base

@@ -1,6 +1,6 @@
 """A Jev-compatible HTTP API for our local model, with a docs page.
 
-    uv run python -m scripts.jeff_server        # http://127.0.0.1:8078
+    uv run python -m scripts.jev_clf_server        # http://127.0.0.1:8078
 
 Endpoints:
     POST /v1/systemone   the TypeSafe contract: state + typed questions
@@ -17,6 +17,8 @@ here by changing the base URL:
 
 from __future__ import annotations
 
+from typing import Any
+
 import json
 import sys
 import time
@@ -31,13 +33,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from jeff import schema as S  # noqa: E402
-from jeff.client import SystemOneClient  # noqa: E402
+from jev_clf import schema as S  # noqa: E402
+from jev_clf.client import SystemOneClient  # noqa: E402
 
 MODEL_ID = "jeff-1"
-PORT = 8078
+PORT = 8079
 
-app = FastAPI(title="jeff", description="An independent, decision-only fact-checking model.")
+app = FastAPI(title="jev_clf", description="An independent, decision-only fact-checking model.")
 _client: SystemOneClient | None = None
 
 
@@ -72,6 +74,11 @@ class QScore(BaseModel):
 class SystemOneRequest(BaseModel):
     state: Any = Field(..., description="Text, a JSON object, or a message list.")
     questions: dict[str, QChoice | QNoul | QScore]
+
+
+# The union above is only resolvable once all three classes exist; without this
+# Pydantic defers validation and the first request fails at runtime.
+SystemOneRequest.model_rebuild()
 
 
 # --- endpoints --------------------------------------------------------------
@@ -150,17 +157,9 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
 
 @app.get("/", response_class=HTMLResponse)
 def index() -> HTMLResponse:
-    plot = ""
-    plot_path = ROOT / "results" / "calibration_plot.png"
-    if plot_path.exists():
-        plot = '<img src="/static/calibration_plot.png" alt="reliability diagram" style="max-width:720px;width:100%">'
+    from scripts.jeff_demo_page import demo_page
+    return demo_page()
 
-    html = (ROOT / "results" / "demo.html")
-    if html.exists():
-        text = html.read_text()
-        return HTMLResponse(text.replace("{{CALIBRATION_PLOT}}", plot))
-
-    return HTMLResponse("<h1>jeff</h1><p>POST /v1/systemone — see /docs</p>")
 
 
 def main() -> None:
