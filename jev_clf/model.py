@@ -134,6 +134,7 @@ class OptionScorer(nn.Module):
         freeze_encoder: bool = True,
         max_length: int = 512,
         dropout: float = 0.1,
+        normalize_head_input: bool = True,
     ) -> None:
         super().__init__()
         self.encoder_name = encoder_name
@@ -152,6 +153,11 @@ class OptionScorer(nn.Module):
             self.encoder.eval()
 
         d_enc = self.encoder.config.hidden_size
+        # LayerNorm on the encoder output. Without it the head is not
+        # scale-robust: hidden-state magnitudes vary wildly between encoders
+        # (Qwen absmax ~220 vs MiniLM ~6), which saturates the attention logits
+        # at init and pins predictions at exactly 1/N.
+        self.norm = nn.LayerNorm(d_enc) if normalize_head_input else None
         self.ctx_proj = nn.Linear(d_enc, head_width)
         self.q_proj = nn.Linear(d_enc, head_width)
         self.attn = nn.MultiheadAttention(
@@ -239,6 +245,8 @@ class OptionScorer(nn.Module):
         state_hidden, state_mask = self._encode(
             [state_to_text(s) for s in states]
         )
+        if self.norm is not None:
+            state_hidden = self.norm(state_hidden)
         ctx = self.ctx_proj(state_hidden)  # [R, Ls, W]
 
         pairs: list[tuple[int, str, list[str], int]] = []
