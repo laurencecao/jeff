@@ -24,6 +24,37 @@ declared answer space?
 opposite directions. **We are statistically indistinguishable from live Jev on
 both splits**, at substantially better calibration (ECE 0.077 / 0.090 vs 0.114).
 
+## Head-to-head at adequate sample size (9,730 unseen rows, human labels)
+
+The n=199 comparisons are under-powered; this is the first one that resolves the
+difference. Both models scored on the **same** 9,730 rows, none of which the
+model saw in training (verified: zero claim overlap with any split).
+
+| model | accuracy | macro-F1 | ECE | Brier |
+|---|---|---|---|---|
+| live Jev 1.13.0 | **0.8283** | 0.7994 | 0.0790 | 0.2750 |
+| **ours (4B + LoRA)** | 0.8143 | 0.7769 | **0.0709** | 0.2822 |
+
+**Jev is 1.4 points ahead — a real gap at this sample size, not noise.** Our
+calibration remains better. This supersedes the n=199 "statistically
+indistinguishable" claim above, which was under-powered; and the earlier note
+that our 0.8143 beat "Jev's 0.799" was an artifact of comparing different sample
+sizes.
+
+**Where the gap is:** our weakest class is `not_enough_info` (F1 0.666 vs
+`supported` 0.889 / `refuted` 0.776), and Jev's advantage concentrates exactly
+there — detecting the *absence* of supporting evidence.
+
+**Multi-primitive gap.** Choice is trained and good; **Noul and Score are
+untrained** (all six training schemas are Choice; Score measures a uniform
+0.25/level with no signal where Jev returns a real graded answer). Teacher-
+labelled Noul/Score rows exist (`sft_multi.jsonl`, 3000 rows) and the 4B retrain
+on the merged set is complete but not yet evaluated.
+
+**Parallelism gap, measured.** Our latency scales linearly with questions per
+call (6.39× at k=8) while Jev's is flat (0.78×): 2085 ms vs 150 ms at eight
+questions.
+
 Jev's own judgment on this claim (asked directly, see `results/jev_assessment.json`):
 P(supported) = 0.89. Our own conservative phrasing: the gap is not resolvable at
 this sample size, so "roughly as good as Jev" is fair and "beats Jev" is not.

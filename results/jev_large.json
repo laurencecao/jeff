@@ -1,0 +1,49 @@
+{
+  "n": 9730,
+  "labels": [
+    "not_enough_info",
+    "refuted",
+    "supported"
+  ],
+  "accuracy": 0.8282631038026721,
+  "macro_f1": 0.7994254905106022,
+  "per_label": {
+    "not_enough_info": {
+      "precision": 0.6662222222222223,
+      "recall": 0.7117758784425451,
+      "f1": 0.6882460973370064,
+      "support": 2106
+    },
+    "refuted": {
+      "precision": 0.8200392927308447,
+      "recall": 0.8048592364057077,
+      "f1": 0.8123783573374854,
+      "support": 2593
+    },
+    "supported": {
+      "precision": 0.9063829787234042,
+      "recall": 0.889087656529517,
+      "f1": 0.8976520168573149,
+      "support": 5031
+    }
+  },
+  "ece": 0.07895580678314494,
+  "brier": 0.274950058136358,
+  "confusion": {
+    "not_enough_info": {
+      "not_enough_info": 1499,
+      "refuted": 306,
+      "supported": 301
+    },
+    "refuted": {
+      "not_enough_info": 345,
+      "refuted": 2087,
+      "supported": 161
+    },
+    "supported": {
+      "not_enough_info": 406,
+      "refuted": 152,
+      "supported": 4473
+    }
+  }
+}

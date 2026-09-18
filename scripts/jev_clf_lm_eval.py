@@ -73,6 +73,10 @@ def main() -> None:
     ap.add_argument("--split", default="val")
     ap.add_argument("--readout", default="first_token", choices=["first_token", "sequence"])
     ap.add_argument("--max-rows", type=int, default=0)
+    ap.add_argument("--data-file", default=None,
+                    help="rows to score (default: ground_truth.jsonl filtered by --split)")
+    ap.add_argument("--resume", action="store_true",
+                    help="resume from <out>.partial, skipping already-scored rows")
     ap.add_argument("--agreement", action="store_true", help="also score eval_schemas val rows")
     ap.add_argument("--dtype", default="float32", choices=["float32", "bfloat16"])
     ap.add_argument("--out", default=None)
@@ -98,6 +102,17 @@ def main() -> None:
 
     def score_rows(rows: list[S.DecisionRow], label: str) -> list[S.PredictionRow]:
         preds: list[S.PredictionRow] = []
+        ckpt = None
+        done: set[str] = set()
+        if args.resume and args.out:
+            ckpt = Path(str(args.out) + ".partial")
+            if ckpt.exists():
+                prev = S.read_predictions(ckpt)
+                preds = [p for p in prev if p.model == (args.model + ("+" + Path(args.adapter).name if args.adapter else ""))]
+                done = {p.row_id for p in preds}
+                rows = [r for r in rows if r.row_id not in done]
+                print(f"resuming: {len(done)} already scored, {len(rows)} left")
+        flush_every = 250
         for row in rows:
             qid, question = next(iter(row.questions.items()))
             labels = S.label_space(question)
@@ -139,9 +154,16 @@ def main() -> None:
                     meta={"readout": args.readout, "adapter": args.adapter},
                 )
             )
+            if ckpt is not None and len(preds) % flush_every == 0:
+                S.write_predictions(ckpt, preds)
+        if ckpt is not None:
+            S.write_predictions(ckpt, preds)
         return preds
 
-    gt_rows = [r for r in S.read_rows(ROOT / "data/factcheck/ground_truth.jsonl") if r.split == args.split]
+    if args.data_file:
+        gt_rows = list(S.read_rows(ROOT / args.data_file))
+    else:
+        gt_rows = [r for r in S.read_rows(ROOT / "data/factcheck/ground_truth.jsonl") if r.split == args.split]
     if args.max_rows:
         gt_rows = gt_rows[: args.max_rows]
     preds = score_rows(gt_rows, "gt")
