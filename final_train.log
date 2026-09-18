@@ -1,0 +1,10 @@
+=== OPTION SCORER + LM ENCODER + ALL PRIMITIVES ===
+START 2026-09-18 13:05:03
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 10993.15it/s]
+epoch 0: train_loss=0.1394 val_loss=nan
+epoch 1: train_loss=0.1379 val_loss=nan
+epoch 2: train_loss=0.1380 val_loss=nan
+epoch 3: train_loss=0.1383 val_loss=nan
+epoch 4: train_loss=0.1379 val_loss=nan
+epoch 5: train_loss=0.1378 val_loss=nan
+epoch 6: train_loss=0.1378 val_loss=nan

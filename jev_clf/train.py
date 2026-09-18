@@ -169,6 +169,9 @@ def fit_temperature(
     )
     logit_list, tgt_list = [], []
     for pair in logits:
+        # DETACH: without this, LBFGS's closure() calls backward() through the
+        # live model graph during calibration, which can mutate model weights
+        # between epochs — the cause of val_loss going nan after epoch 0.
         logit_list.append(pair["logits"].detach())
         tgt_list.append(
             _target_tensor(
