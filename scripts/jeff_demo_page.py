@@ -105,8 +105,8 @@ async function go(){
     document.getElementById("out").innerHTML =
       `<div class="card"><div class="verdict">${v.choice.toUpperCase()}</div>` + bars(v.probabilities) +
       `<div class="muted">confidence ${(v.confidence*100).toFixed(1)}% &middot; latency ${j.latency_ms} ms</div></div>` +
-      `<div class="card"><strong>Score — how much evidence?</strong> ${s.score.toFixed(2)} / 3
-         <div class="muted">${s.criteria.join(" · ")}</div></div>` +
+      `<div class="card"><strong>Score — how much evidence?</strong> ${(s.score||0).toFixed(2)} / 3
+         <div class="muted">${Array.isArray(s.criteria) ? s.criteria.join(" · ") : ""}</div></div>` +
       `<div class="card"><strong>Noul — contains a date or number?</strong> ${j.has_date.noul.toFixed(3)}</div>`;
     document.getElementById("lat").textContent = "";
   }catch(e){

@@ -146,7 +146,8 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
             s = out.scores[qid]
             body[qid] = {"type": "score", "score": round(s.score, 4),
                          "probabilities": {k: round(v, 6) for k, v in s.probabilities.items()},
-                         "confidence": round(s.confidence, 6)}
+                         "confidence": round(s.confidence, 6),
+                         "criteria": list(q.criteria)}
         else:
             c = out.choices[qid]
             body[qid] = {"type": "choice", "choice": c.choice,
