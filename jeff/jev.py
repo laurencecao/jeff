@@ -1,4 +1,4 @@
-"""Live Jev teacher for jev_clf, with an append-only disk cache.
+"""Live Jev teacher for jeff, with an append-only disk cache.
 
 `JevTeacher` wraps `TypeSafeClient.system_one`: it converts our schema-level
 `Questions` into SDK question objects, calls the model, and returns the full
@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable, Iterator
 
-from jev_clf.schema import (
+from jeff.schema import (
     ChoiceQuestion,
     DecisionRow,
     NoulQuestion,

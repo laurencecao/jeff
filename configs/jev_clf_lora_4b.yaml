@@ -1,4 +1,4 @@
-# jev_clf LoRA arm — RETRAIN EXPERIMENT: bigger base model.
+# jeff LoRA arm — RETRAIN EXPERIMENT: bigger base model.
 #
 # Hypothesis: capacity is the binding constraint, not teacher noise or the
 # decision rule. Evidence: zero-shot accuracy scales steeply with model size on
@@ -46,7 +46,7 @@ data:
   label_source_weights: {}
 
 # --- output ----------------------------------------------------------------
-out_dir: artifacts/jev_clf/lora_4b
+out_dir: artifacts/jeff/lora_4b
 mlflow:
   uri: http://127.0.0.1:5001
   experiment: jev-clf

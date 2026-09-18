@@ -1,7 +1,7 @@
 """Baselines: live Jev, zero-shot NLI, and the open option scorers.
 
 Every baseline answers the same ``DecisionRow``s the student sees and writes
-the same ``PredictionRow`` shape, so ``jev_clf.eval`` is model-agnostic.
+the same ``PredictionRow`` shape, so ``jeff.eval`` is model-agnostic.
 
 - ``JevClassifier`` — the teacher answering live; the ceiling for both
   agreement and ground-truth metrics.
@@ -18,7 +18,7 @@ import importlib
 import time
 from typing import Any, Iterable
 
-from jev_clf.schema import (
+from jeff.schema import (
     FACTCHECK_LABELS,
     ChoiceQuestion,
     DecisionRow,
@@ -92,7 +92,7 @@ def _no_evidence_probs(question: ChoiceQuestion | NoulQuestion, row_id: str) -> 
 
 
 class JevClassifier:
-    """Answers rows with live Jev via ``jev_clf.jev.JevTeacher``.
+    """Answers rows with live Jev via ``jeff.jev.JevTeacher``.
 
     This is the upper bound: agreement with it is trivially ~1.0 (modulo
     sampling noise), and its ground-truth accuracy is what the student is
@@ -108,10 +108,10 @@ class JevClassifier:
     ) -> None:
         if teacher is None:
             try:
-                from jev_clf.jev import JevTeacher
+                from jeff.jev import JevTeacher
             except ImportError as exc:
                 raise ImportError(
-                    "jev_clf.jev is not available yet — the JevTeacher slice "
+                    "jeff.jev is not available yet — the JevTeacher slice "
                     "has not landed. Original error: " + str(exc)
                 ) from exc
             kwargs: dict[str, Any] = {"model": model}

@@ -14,7 +14,7 @@ never by its filename, so a predictions file can never be scored against the
 wrong rows. Partial coverage is stated explicitly rather than passed off as a
 full result.
 
-    uv run python -m scripts.jev_clf_final_report
+    uv run python -m scripts.jeff_final_report
 """
 
 from __future__ import annotations
@@ -26,13 +26,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jev_clf import schema as S  # noqa: E402
-from jev_clf.eval import agreement as agreement_metric  # noqa: E402
-from jev_clf.eval import ground_truth_metrics  # noqa: E402
+from jeff import schema as S  # noqa: E402
+from jeff.eval import agreement as agreement_metric  # noqa: E402
+from jeff.eval import ground_truth_metrics  # noqa: E402
 
 DATA = ROOT / "data" / "factcheck"
 RESULTS = ROOT / "results"
-ARTIFACTS = ROOT / "artifacts" / "jev_clf"
+ARTIFACTS = ROOT / "artifacts" / "jeff"
 
 
 def by_split(path: Path) -> dict[str, list[S.DecisionRow]]:
@@ -121,11 +121,11 @@ def main() -> None:
         acc_lines.append(
             f"| arm:{met_file.parent.name} | val | {v['n']} | {v['n']}/199 | {v['accuracy']:.3f} | "
             f"{v['macro_f1']:.3f} | {v['ece']:.3f} | {v['brier']:.3f} | "
-            f"`artifacts/jev_clf/{met_file.parent.name}/metrics.json` |"
+            f"`artifacts/jeff/{met_file.parent.name}/metrics.json` |"
         )
 
     lines = [
-        "# jev_clf — final comparison",
+        "# jeff — final comparison",
         "",
         "Two numbers, never to be confused: **accuracy** against human labels (is it any good?) "
         "and **agreement with Jev** (is it a faithful clone?). A model can win one and lose the other.",
@@ -151,7 +151,7 @@ def main() -> None:
         "inherited jaggedness is untested.",
         "- **The NLI baseline short-circuits empty-evidence rows** to `not_enough_info` "
         '(`meta.shortcut="no_evidence"`), mildly flattering its all-rows accuracy. The no-shortcut '
-        "variant is in `results/jev_clf_baselines.json`.",
+        "variant is in `results/jeff_baselines.json`.",
         "- **Calibration is fit on val only**, never test.",
         "- **The frozen-MiniLM arms are controls, not candidates.** They show what a "
         "sentence-similarity encoder plus a small unnormalized head achieves; the head has no input "
@@ -166,7 +166,7 @@ def main() -> None:
         lines += [f"- {u}" for u in unmatched]
         lines += [""]
 
-    out = RESULTS / "jev_clf_final.md"
+    out = RESULTS / "jeff_final.md"
     out.write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     print("\nwrote", out)

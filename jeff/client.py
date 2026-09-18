@@ -42,11 +42,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from jev_clf import schema as S  # noqa: E402
-from scripts.jev_clf_lm_eval import build_inputs, label_variants  # noqa: E402
+from jeff import schema as S  # noqa: E402
+from scripts.jeff_lm_eval import build_inputs, label_variants  # noqa: E402
 
 DEFAULT_BASE = "Qwen/Qwen3-4B-Instruct-2507"
-DEFAULT_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b")
+DEFAULT_ADAPTER = str(ROOT / "artifacts/jeff/lora_4b")
 
 
 # --------------------------------------------------------------------------

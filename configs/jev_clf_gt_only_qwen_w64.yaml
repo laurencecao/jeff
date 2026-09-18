@@ -1,11 +1,11 @@
-# jev_clf gt_only_qwen_w64 arm — clean one-variable encoder comparison.
-# Identical to configs/jev_clf_gt_only.yaml in EVERY respect except the
+# jeff gt_only_qwen_w64 arm — clean one-variable encoder comparison.
+# Identical to configs/jeff_gt_only.yaml in EVERY respect except the
 # encoder: Qwen/Qwen2.5-0.5B instead of sentence-transformers/all-MiniLM-L6-v2.
 # head_width stays 64 so the only model delta vs the MiniLM arm is the
 # encoder. lr is 1e-4 (not the MiniLM arm's 1e-3) because Qwen's hidden
 # absmax ~220 saturates the unnormalized head at 1e-3 — see the companion
 # config's header for the overfit-probe evidence.
-# Companion to configs/jev_clf_gt_only_qwen.yaml (head_width 256).
+# Companion to configs/jeff_gt_only_qwen.yaml (head_width 256).
 
 # --- model -----------------------------------------------------------------
 encoder_name: Qwen/Qwen2.5-0.5B

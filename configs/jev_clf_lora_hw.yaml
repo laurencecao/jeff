@@ -1,4 +1,4 @@
-# jev_clf LoRA arm — RETRAIN EXPERIMENT: upweight human labels.
+# jeff LoRA arm — RETRAIN EXPERIMENT: upweight human labels.
 #
 # Hypothesis: 7000 of the 9119 training targets come from live Jev, which is
 # only ~0.80 accurate on this data. So most of the training signal imitates a
@@ -10,7 +10,7 @@
 # shape, same optimiser/schedule/seed, same data files) so the comparison is
 # one-variable: only `label_source_weights` and the output directory differ.
 #
-# Prompt contract (must stay aligned with scripts/jev_clf_lm_eval.py):
+# Prompt contract (must stay aligned with scripts/jeff_lm_eval.py):
 #   prompt_format: eval renders each row as the eval harness does — eval SYSTEM
 #   prompt + (question_to_text + State) + "\n\nVerdict:" under the chat template
 #   with add_generation_prompt=True; completion_leading_space supervises
@@ -52,7 +52,7 @@ data:
     jev-1.13.0: 1.0
 
 # --- output ----------------------------------------------------------------
-out_dir: artifacts/jev_clf/lora_hw
+out_dir: artifacts/jeff/lora_hw
 mlflow:
   uri: http://127.0.0.1:5001
   experiment: jev-clf

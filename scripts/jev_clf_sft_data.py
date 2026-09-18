@@ -1,4 +1,4 @@
-"""Build the SFT dataset for the LM-classifier arm of jev_clf.
+"""Build the SFT dataset for the LM-classifier arm of jeff.
 
 The frozen-MiniLM arm trained a head on a sentence-similarity encoder; this
 script instead renders each DecisionRow as a chat the LM is fine-tuned on:
@@ -29,7 +29,7 @@ Sources:
 
 Usage (from the repo root):
 
-    uv run python -m scripts.jev_clf_sft_data
+    uv run python -m scripts.jeff_sft_data
 """
 
 from __future__ import annotations
@@ -44,9 +44,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf import gen  # noqa: E402
-from jev_clf.model import state_to_text  # noqa: E402
-from jev_clf.schema import (  # noqa: E402
+from jeff import gen  # noqa: E402
+from jeff.model import state_to_text  # noqa: E402
+from jeff.schema import (  # noqa: E402
     FACTCHECK_QUESTION_ID,
     argmax_label,
     label_space,

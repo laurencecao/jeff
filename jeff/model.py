@@ -1,4 +1,4 @@
-"""Text-conditioned option scorer for jev_clf.
+"""Text-conditioned option scorer for jeff.
 
 OptionScorer is a single-pass scorer, not a per-option cross-encoder: the
 state is encoded ONCE with a pretrained encoder (frozen by default), each
@@ -170,7 +170,7 @@ class OptionScorer(nn.Module):
             nn.Linear(head_width, 1),
         )
 
-        # Calibration state, fitted on val by jev_clf.train. Temperature is
+        # Calibration state, fitted on val by jeff.train. Temperature is
         # applied inside forward; isotonic parameters are stored in
         # `calibration` for consumers that want the comparison method.
         self.temperature = 1.0

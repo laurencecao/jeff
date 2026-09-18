@@ -14,8 +14,8 @@ question schemas but swaps the state pool for real ones:
 
 Usage (from the repo root):
 
-    uv run python -m scripts.jev_clf_distill_scale --dry-run
-    uv run python -m scripts.jev_clf_distill_scale --target 7000
+    uv run python -m scripts.jeff_distill_scale --dry-run
+    uv run python -m scripts.jeff_distill_scale --target 7000
 
 Runs are resumable through the teacher's append-only cache: a re-run only
 pays for rows whose (state, schema) pair is not already cached. The run
@@ -37,9 +37,9 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf import gen  # noqa: E402
-from jev_clf.jev import JevTeacher  # noqa: E402
-from jev_clf.schema import (  # noqa: E402
+from jeff import gen  # noqa: E402
+from jeff.jev import JevTeacher  # noqa: E402
+from jeff.schema import (  # noqa: E402
     FACTCHECK_LABELS,
     FACTCHECK_QUESTION_ID,
     DecisionRow,
@@ -427,8 +427,8 @@ def _log_mlflow(args: argparse.Namespace, n_train: int, n_eval: int,
         import mlflow
 
         mlflow.set_tracking_uri("http://127.0.0.1:5001")
-        mlflow.set_experiment("jev-clf")
-        with mlflow.start_run(run_name="jev_clf_distill_scale"):
+        mlflow.set_experiment("jeff")
+        with mlflow.start_run(run_name="jeff_distill_scale"):
             mlflow.log_params({
                 "target": args.target, "seed": args.seed,
                 "workers": args.workers, "budget": args.budget,

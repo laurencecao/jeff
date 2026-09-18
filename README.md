@@ -1,4 +1,4 @@
-# jev_clf — an independent, decision-only fact-checking model
+# jeff — an independent, decision-only fact-checking model
 
 Our own **Jev replacement**. It is not a wrapper around TypeSafe's API and not a
 fine-tuned chat model: it is a **text-conditioned classifier** that takes a
@@ -31,22 +31,22 @@ averaged: a model can imitate the teacher faithfully while being wrong.
 
 | path | what |
 |---|---|
-| `jev_clf/schema.py` | frozen contract: questions, `DecisionRow`, `PredictionRow` |
-| `jev_clf/lm.py` | label readout from a language model |
-| `jev_clf/jev.py` | live Jev teacher client (resumable cache) |
-| `jev_clf/data.py` | FEVER / VitaminC / SciFact / Climate-FEVER loaders |
-| `scripts/jev_clf_autoresearch.py` | the metric the loop optimises |
-| `scripts/jev_clf_lora_train.py` | LoRA fine-tune |
-| `scripts/jev_clf_lm_eval.py` | accuracy + agreement evaluation |
-| `configs/jev_clf_infer.yaml` | **the loop's editable decision rule** |
-| `results/jev_clf_findings.md` | full write-up, limitations included |
+| `jeff/schema.py` | frozen contract: questions, `DecisionRow`, `PredictionRow` |
+| `jeff/lm.py` | label readout from a language model |
+| `jeff/jev.py` | live Jev teacher client (resumable cache) |
+| `jeff/data.py` | FEVER / VitaminC / SciFact / Climate-FEVER loaders |
+| `scripts/jeff_autoresearch.py` | the metric the loop optimises |
+| `scripts/jeff_lora_train.py` | LoRA fine-tune |
+| `scripts/jeff_lm_eval.py` | accuracy + agreement evaluation |
+| `configs/jeff_infer.yaml` | **the loop's editable decision rule** |
+| `results/jeff_findings.md` | full write-up, limitations included |
 | `CONTRACTS_JEV_CLF.md` | cross-slice interface contract |
 
 ## Run
 
 ```bash
-uv run python -m scripts.jev_clf_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct \
-  --adapter artifacts/jev_clf/lora_lm --split test --readout first_token \
+uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct \
+  --adapter artifacts/jeff/lora_lm --split test --readout first_token \
   --dtype bfloat16 --out results/lm_eval_lora_test.json
 
 bash autoresearch.sh        # the loop metric (val only)

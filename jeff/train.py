@@ -1,4 +1,4 @@
-"""Soft-target training + calibration for the jev_clf OptionScorer.
+"""Soft-target training + calibration for the jeff OptionScorer.
 
 Loss is soft-target cross-entropy (KL up to a constant) against
 ``row.targets(qid)`` — the teacher's full distribution, never hardened to an
@@ -31,9 +31,9 @@ from .model import OptionScorer
 from .schema import DecisionRow, read_rows
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-ARTIFACTS = REPO_ROOT / "artifacts" / "jev_clf"
+ARTIFACTS = REPO_ROOT / "artifacts" / "jeff"
 MLFLOW_URI = "http://127.0.0.1:5001"
-MLFLOW_EXPERIMENT = "jev-clf"
+MLFLOW_EXPERIMENT = "jeff"
 
 
 # ---------------------------------------------------------------------------
@@ -260,7 +260,7 @@ def train(rows: list[DecisionRow], cfg: dict, out_dir: str | Path) -> dict:
     """Train the OptionScorer head and calibrate on val.
 
     ``rows`` carry their own ``split``; ``cfg`` is the parsed
-    ``configs/jev_clf.yaml`` dict. Returns metrics + artifact paths.
+    ``configs/jeff.yaml`` dict. Returns metrics + artifact paths.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -405,7 +405,7 @@ def train(rows: list[DecisionRow], cfg: dict, out_dir: str | Path) -> dict:
 
         mlflow.set_tracking_uri(MLFLOW_URI)
         mlflow.set_experiment(MLFLOW_EXPERIMENT)
-        with mlflow.start_run(run_name="jev-clf-train"):
+        with mlflow.start_run(run_name="jeff-train"):
             mlflow.log_params(
                 {k: v for k, v in cfg.items() if isinstance(v, (int, float, str, bool))}
             )
@@ -423,8 +423,8 @@ def train(rows: list[DecisionRow], cfg: dict, out_dir: str | Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description="Train the jev_clf OptionScorer")
-    ap.add_argument("--config", default=str(REPO_ROOT / "configs" / "jev_clf.yaml"))
+    ap = argparse.ArgumentParser(description="Train the jeff OptionScorer")
+    ap.add_argument("--config", default=str(REPO_ROOT / "configs" / "jeff.yaml"))
     ap.add_argument("--out", default=str(ARTIFACTS / "run"))
     args = ap.parse_args()
     cfg = yaml.safe_load(open(args.config))

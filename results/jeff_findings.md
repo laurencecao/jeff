@@ -1,4 +1,4 @@
-# jev_clf — an independent, decision-only fact-checking model
+# jeff — an independent, decision-only fact-checking model
 
 **Question.** TypeSafe's Jev is a classifier that returns typed, calibrated
 probabilities instead of text. Can we build one ourselves — a local model that
@@ -157,9 +157,9 @@ is only ~80% accurate.
 
 ```bash
 bash autoresearch.sh                      # the loop metric (val only)
-uv run python -m scripts.jev_clf_lm_eval --model Qwen/Qwen3-4B-Instruct-2507 \
-  --adapter artifacts/jev_clf/lora_4b --split test --readout first_token \
+uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen3-4B-Instruct-2507 \
+  --adapter artifacts/jeff/lora_4b --split test --readout first_token \
   --dtype bfloat16 --out results/lm_eval_lora_4b_test.json
-uv run python -m scripts.jev_clf_final_report   # -> results/jev_clf_final.md
+uv run python -m scripts.jeff_final_report   # -> results/jeff_final.md
 uv run python -m scripts.jev_assess_work        # Jev's assessment
 ```

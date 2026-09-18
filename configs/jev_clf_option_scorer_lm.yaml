@@ -1,4 +1,4 @@
-# jev_clf OptionScorer — RETRAIN: real LM encoder + normalization fix + all three
+# jeff OptionScorer — RETRAIN: real LM encoder + normalization fix + all three
 # primitives.
 #
 # Hypothesis: the option-scorer architecture gives Jev's single-pass property
@@ -55,7 +55,7 @@ data:
   label_source_weights: {}
 
 # --- output ----------------------------------------------------------------
-out_dir: artifacts/jev_clf/option_scorer_lm
+out_dir: artifacts/jeff/option_scorer_lm
 mlflow:
   uri: http://127.0.0.1:5001
   experiment: jev-clf

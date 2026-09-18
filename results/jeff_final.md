@@ -1,4 +1,4 @@
-# jev_clf — final comparison
+# jeff — final comparison
 
 Two numbers, never to be confused: **accuracy** against human labels (is it any good?) and **agreement with Jev** (is it a faithful clone?). A model can win one and lose the other.
 
@@ -37,7 +37,7 @@ Imitation of the teacher on schemas never seen in training. This is NOT a qualit
 ## 3. Caveats that must travel with the numbers above
 
 - **The jaggedness suite does not discriminate.** Live Jev scored 9/9 on it, so it cannot demonstrate whether a student inherits the teacher's failure modes. Any claim about inherited jaggedness is untested.
-- **The NLI baseline short-circuits empty-evidence rows** to `not_enough_info` (`meta.shortcut="no_evidence"`), mildly flattering its all-rows accuracy. The no-shortcut variant is in `results/jev_clf_baselines.json`.
+- **The NLI baseline short-circuits empty-evidence rows** to `not_enough_info` (`meta.shortcut="no_evidence"`), mildly flattering its all-rows accuracy. The no-shortcut variant is in `results/jeff_baselines.json`.
 - **Calibration is fit on val only**, never test.
 - **The frozen-MiniLM arms are controls, not candidates.** They show what a sentence-similarity encoder plus a small unnormalized head achieves; the head has no input normalization and is therefore not scale-robust across encoders (Qwen's hidden-state absmax ~220 saturates its attention logits at init).
 - **Live Jev is only ~0.80 accurate on this data**, so teacher-distilled soft targets inject roughly 20% label noise relative to ground truth.

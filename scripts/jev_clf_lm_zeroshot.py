@@ -2,7 +2,7 @@
 
 No training: an instruct LM reads the claim/evidence state plus the question
 (labels + definitions in the prompt) and we read the answer distribution off
-its next-token logits — see ``jev_clf.lm`` for the two readout rules.
+its next-token logits — see ``jeff.lm`` for the two readout rules.
 
 Evaluates BOTH readouts (``sequence`` default, ``first_token``) on:
 - ``ground_truth.jsonl`` val rows -> ``ground_truth_metrics`` + reliability bins
@@ -10,9 +10,9 @@ Evaluates BOTH readouts (``sequence`` default, ``first_token``) on:
   (cloning fidelity on held-out question wordings — NOT accuracy)
 
 Writes ``preds_lm_<tag>_<readout>_<split>.jsonl`` under data/factcheck/ and a
-JSON report under results/. Logs to MLflow experiment ``jev-clf`` best-effort.
+JSON report under results/. Logs to MLflow experiment ``jeff`` best-effort.
 
-Run:  uv run python scripts/jev_clf_lm_zeroshot.py --model Qwen/Qwen3-4B-Instruct-2507
+Run:  uv run python scripts/jeff_lm_zeroshot.py --model Qwen/Qwen3-4B-Instruct-2507
 """
 from __future__ import annotations
 
@@ -27,13 +27,13 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf.eval import (  # noqa: E402
+from jeff.eval import (  # noqa: E402
     agreement,
     ground_truth_metrics,
     reliability_bins,
 )
-from jev_clf.lm import READOUTS, LMLabeler  # noqa: E402
-from jev_clf.schema import (  # noqa: E402
+from jeff.lm import READOUTS, LMLabeler  # noqa: E402
+from jeff.schema import (  # noqa: E402
     DecisionRow,
     PredictionRow,
     read_rows,
@@ -79,7 +79,7 @@ def _log_mlflow(report: dict[str, Any]) -> None:
         import mlflow
 
         mlflow.set_tracking_uri("http://127.0.0.1:5001")
-        mlflow.set_experiment("jev-clf")
+        mlflow.set_experiment("jeff")
         with mlflow.start_run(run_name=f"lm_zeroshot_{report['model_tag']}"):
             mlflow.log_params(
                 {
@@ -114,7 +114,7 @@ def main() -> None:
         "--report",
         type=Path,
         default=None,
-        help="default results/jev_clf_lm_zeroshot_<tag>.json",
+        help="default results/jeff_lm_zeroshot_<tag>.json",
     )
     parser.add_argument(
         "--out-dir", type=Path, default=REPO_ROOT / "data" / "factcheck"
@@ -124,7 +124,7 @@ def main() -> None:
 
     tag = _tag(args.model)
     report_path = args.report or (
-        REPO_ROOT / "results" / f"jev_clf_lm_zeroshot_{tag}.json"
+        REPO_ROOT / "results" / f"jeff_lm_zeroshot_{tag}.json"
     )
 
     gt_val = [

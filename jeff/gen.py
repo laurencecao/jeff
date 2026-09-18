@@ -1,4 +1,4 @@
-"""Programmatic question-schema + claim generator for jev_clf.
+"""Programmatic question-schema + claim generator for jeff.
 
 Builds `DecisionRow`s of the frozen fact-check shape:
 
@@ -39,8 +39,8 @@ from __future__ import annotations
 import random
 from typing import Any, Iterator
 
-from jev_clf.jev import JevTeacher
-from jev_clf.schema import (
+from jeff.jev import JevTeacher
+from jeff.schema import (
     FACTCHECK_LABELS,
     FACTCHECK_QUESTION_ID,
     DecisionRow,

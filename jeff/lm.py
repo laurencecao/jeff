@@ -1,4 +1,4 @@
-"""Zero-shot LM label readout for jev_clf — the classification is read OUT of
+"""Zero-shot LM label readout for jeff — the classification is read OUT of
 a real language model, not bolted onto a frozen featurizer.
 
 A generative instruct LM already represents claim/evidence relations. Instead
@@ -68,7 +68,7 @@ _FALLBACK_TEMPLATE = "{content}\n\nAnswer:"
 def build_prompt(state: Any, question: Question, tokenizer: Any) -> str:
     """Render state + question into the model's chat template.
 
-    The user turn carries the flat state text (``jev_clf.model.state_to_text``),
+    The user turn carries the flat state text (``jeff.model.state_to_text``),
     the question text (``schema.question_to_text``: instructions plus one
     ``label: definition`` line per label), and a cue naming the exact label
     strings. The string ends with the template's generation prompt, so the

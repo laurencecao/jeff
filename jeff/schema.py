@@ -1,4 +1,4 @@
-"""Frozen cross-slice contract for jev_clf — an independent, decision-only
+"""Frozen cross-slice contract for jeff — an independent, decision-only
 fact-checking model.
 
 A Jev-like model takes `state` plus typed questions whose answer space is
@@ -6,7 +6,7 @@ declared in natural language at call time, and returns a probability
 distribution over that answer space. That is a *text-conditioned classifier*:
 the labels are not fixed by training, they are named in the request.
 
-jev_clf is our own such model, aimed at fact verification: given a claim and
+jeff is our own such model, aimed at fact verification: given a claim and
 the evidence passages that were retrieved for it, return a calibrated
 distribution over {supported, refuted, not_enough_info}.
 

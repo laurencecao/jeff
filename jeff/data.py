@@ -34,7 +34,7 @@ retrieval pass — out of scope; ``allenai/scifact`` and ``climate_fever`` via
 ``load_dataset`` are script-based and unsupported by datasets 5.x (SciFact is
 loaded from its release tarball instead).
 
-Regenerate:  uv run python -m jev_clf.data
+Regenerate:  uv run python -m jeff.data
 """
 from __future__ import annotations
 

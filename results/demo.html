@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jeff — an independent, decision-only fact-checking model</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 -apple-system, system-ui, sans-serif; max-width: 980px;
+         margin: 0 auto; padding: 2.5rem 1.5rem; }
+  h1 { font-size: 1.9rem; margin-bottom: 0.2rem; }
+  h2 { font-size: 1.2rem; margin-top: 2.2rem; border-bottom: 1px solid #8884; padding-bottom: .3rem; }
+  .sub { color: #888; margin-top: 0; }
+  table { border-collapse: collapse; margin: 1rem 0; width: 100%; }
+  th, td { text-align: left; padding: .45rem .7rem; border-bottom: 1px solid #8883; }
+  th { font-weight: 600; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .good { font-weight: 700; }
+  code, pre { font: 13px/1.5 ui-monospace, Menlo, monospace; }
+  pre { background: #8881; padding: .9rem 1.1rem; border-radius: 8px; overflow-x: auto; }
+  img.plot { max-width: 780px; width: 100%; border-radius: 8px; }
+  .note { font-size: .9rem; color: #777; }
+  .pill { display: inline-block; background: #2a8; color: #fff; border-radius: 999px;
+          padding: .1rem .6rem; font-size: .8rem; margin-right: .3rem; }
+</style>
+</head>
+<body>
+
+<h1>Jeff</h1>
+<p class="sub">An independent, decision-only fact-checking model — a local Jev replacement.</p>
+
+<p>
+  <span class="pill">4B + LoRA</span><span class="pill">all 3 primitives</span>
+  <span class="pill">runs locally</span><span class="pill">zero marginal cost</span>
+</p>
+
+<p>Send a claim plus the evidence retrieved for it, ask typed questions whose
+answers are declared <em>in the request</em>, and get back a calibrated
+probability distribution — one forward pass, no text generation, no parsing.
+The label set and each label's natural-language definition arrive at call time,
+so a differently-worded question or a different <em>number</em> of labels works
+without retraining.</p>
+
+<h2>Measured on 9,730 unseen claims, human ground truth</h2>
+
+<table>
+  <tr><th>model</th><th class="num">accuracy</th><th class="num">macro-F1</th><th class="num">ECE (calibration)</th></tr>
+  <tr><td>TypeSafe Jev 1.13.0 (hosted)</td><td class="num">0.8283</td><td class="num">0.7994</td><td class="num">0.0790</td></tr>
+  <tr><td><strong>jeff</strong> (this model, local)</td><td class="num">0.8174</td><td class="num">0.7776</td><td class="num good">0.0805</td></tr>
+  <tr><td>zero-shot NLI cross-encoder</td><td class="num">0.6680</td><td class="num">—</td><td class="num">—</td></tr>
+</table>
+
+<p class="note">Jev is 1.1 points ahead on accuracy. Calibration is a statistical
+tie — and it is measured here on human labels, which TypeSafe's published
+evaluations do not use (their reference is an average of two frontier models,
+with no human ground truth).</p>
+
+{{CALIBRATION_PLOT}}
+
+<h2>Reliability curve</h2>
+<p>Both models are overconfident between 0.5 and 0.8 stated confidence. They
+diverge most at the <em>low</em>-confidence end: where ours states ~0.38 it is
+right ~0.38 of the time, while Jev states ~0.38 and is right ~0.21. Low
+confidence is the range a system uses to decide <em>whether to act</em>, so that
+is the place where honest uncertainty matters most.</p>
+
+<h2>Try it</h2>
+<pre>curl -s http://127.0.0.1:8078/v1/systemone \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "state": {"claim": "The Eiffel Tower is in Paris.",
+              "evidence": [{"title": "Eiffel Tower",
+                            "text": "A wrought-iron tower on the Champ de Mars in Paris, France."}]},
+    "questions": {
+      "verdict": {"type": "choice",
+                  "instructions": "Does the evidence establish the claim?",
+                  "criteria": {"supported": "The evidence entails the claim.",
+                               "refuted": "The evidence contradicts it.",
+                               "not_enough_info": "The evidence cannot decide it."}},
+      "has_date": {"type": "noul", "instructions": "Does the evidence contain a date or number?"}
+    }
+  }'</pre>
+
+<p><a href="/docs">Interactive API (Swagger)</a> ·
+<a href="/v1/models">model catalogue</a></p>
+
+<h2>What it is</h2>
+<p>Classification is read out of a real language model's <em>own next-token
+distribution</em> over the declared labels — no classification head is bolted on,
+and nothing is generated. That keeps it text-conditioned: labels are defined in
+language at call time, the way Jev's are, rather than fixed by training.</p>
+
+<p class="note">Measured against TypeSafe Jev 1.13.0 on identical rows. Jev is a
+hosted commercial model; this one is 4B + a 4.4M-parameter LoRA adapter, and it
+runs on a laptop GPU.</p>
+
+</body>
+</html>

@@ -1,12 +1,12 @@
-"""CLI: generate jev_clf fact-check rows (synthetic oracle or Jev-distilled).
+"""CLI: generate jeff fact-check rows (synthetic oracle or Jev-distilled).
 
 Examples (from the repo root):
 
-    uv run python -m scripts.jev_clf_gen --n 300 --only synthetic \
+    uv run python -m scripts.jeff_gen --n 300 --only synthetic \
         --out data/factcheck/synthetic_pilot.jsonl
-    uv run python -m scripts.jev_clf_gen --n 200 --only jev \
+    uv run python -m scripts.jeff_gen --n 200 --only jev \
         --out data/factcheck/distill_pilot.jsonl
-    uv run python -m scripts.jev_clf_gen --n 200 --only jev --dry-run
+    uv run python -m scripts.jeff_gen --n 200 --only jev --dry-run
 
 Jev-labelled runs are resumable: rows already in the teacher's cache cost no
 request, so re-running the same command only pays for what is missing.
@@ -22,9 +22,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf.gen import generate_rows  # noqa: E402
-from jev_clf.jev import JevTeacher  # noqa: E402
-from jev_clf.schema import (  # noqa: E402
+from jeff.gen import generate_rows  # noqa: E402
+from jeff.jev import JevTeacher  # noqa: E402
+from jeff.schema import (  # noqa: E402
     FACTCHECK_QUESTION_ID,
     argmax_label,
     read_rows,
@@ -81,8 +81,8 @@ def _log_mlflow(n: int, args: argparse.Namespace, tables: dict[str, dict[str, in
         import mlflow
 
         mlflow.set_tracking_uri("http://127.0.0.1:5001")
-        mlflow.set_experiment("jev-clf")
-        with mlflow.start_run(run_name="jev_clf_gen"):
+        mlflow.set_experiment("jeff")
+        with mlflow.start_run(run_name="jeff_gen"):
             mlflow.log_params(
                 {"n": n, "seed": args.seed, "only": args.only, "out": str(args.out)}
             )

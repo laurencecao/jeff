@@ -22,7 +22,7 @@ sys.path.insert(0, str(ROOT))
 
 from typesafe_sdk import Choice, Noul, TypeSafeClient  # noqa: E402
 
-from jev_clf import schema as S  # noqa: E402
+from jeff import schema as S  # noqa: E402
 
 MODEL = "jev-1.13.0"
 KS = (1, 2, 4, 8, 16)

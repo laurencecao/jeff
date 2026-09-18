@@ -1,4 +1,4 @@
-"""jev_clf — our own decision-only fact-checking model.
+"""jeff — our own decision-only fact-checking model.
 
 Slices:
     schema   frozen data/question contract (import this, do not fork it)
@@ -11,7 +11,7 @@ Slices:
     baselines  Jev-as-classifier, zero-shot NLI, open option scorers
 
 Run everything from the repo root, e.g.:
-    uv run python -m jev_clf.train --config configs/jev_clf.yaml
+    uv run python -m jeff.train --config configs/jeff.yaml
 """
 
 __version__ = "0.1.0"

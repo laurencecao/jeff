@@ -6,13 +6,13 @@ ceiling/reference; the NLI cross-encoder is the zero-shot floor.
 
 Examples (from the repo root):
 
-    uv run python -m scripts.jev_clf_baselines_run
-    uv run python -m scripts.jev_clf_baselines_run --models nli --limit 20
+    uv run python -m scripts.jeff_baselines_run
+    uv run python -m scripts.jeff_baselines_run --models nli --limit 20
 
 Outputs (under --out-dir, default data/factcheck):
     preds_nli_{val,test,jaggedness}.jsonl
     preds_jev_{val,test,jaggedness}.jsonl
-and a metrics report at --report (default results/jev_clf_baselines.json).
+and a metrics report at --report (default results/jeff_baselines.json).
 
 Honesty notes baked in:
   * ZeroShotNLI short-circuits empty-evidence rows to not_enough_info
@@ -36,13 +36,13 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf.baselines import JevClassifier, ZeroShotNLI  # noqa: E402
-from jev_clf.eval import (  # noqa: E402
+from jeff.baselines import JevClassifier, ZeroShotNLI  # noqa: E402
+from jeff.eval import (  # noqa: E402
     ground_truth_metrics,
     jaggedness_suite,
     reliability_bins,
 )
-from jev_clf.schema import (  # noqa: E402
+from jeff.schema import (  # noqa: E402
     DecisionRow,
     PredictionRow,
     label_space,
@@ -191,8 +191,8 @@ def _log_mlflow(report: dict[str, Any]) -> None:
         import mlflow
 
         mlflow.set_tracking_uri("http://127.0.0.1:5001")
-        mlflow.set_experiment("jev-clf")
-        with mlflow.start_run(run_name="jev_clf_baselines"):
+        mlflow.set_experiment("jeff")
+        with mlflow.start_run(run_name="jeff_baselines"):
             mlflow.log_params(
                 {"data": report["data"], "models": ",".join(report["models"])}
             )
@@ -226,7 +226,7 @@ def main() -> None:
     parser.add_argument(
         "--report",
         type=Path,
-        default=REPO_ROOT / "results" / "jev_clf_baselines.json",
+        default=REPO_ROOT / "results" / "jeff_baselines.json",
     )
     parser.add_argument(
         "--models",

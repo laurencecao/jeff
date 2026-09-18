@@ -13,7 +13,7 @@ Two things are assessed:
   A. The Corrective Ornstein method (the user's prior work, using an
      Ornstein-Uhlenbeck / drift-diffusion framing scored by AUC) — how much of
      it transfers to this task.
-  B. Our own jev_clf state of evidence — which lever is most likely to close
+  B. Our own jeff state of evidence — which lever is most likely to close
      the remaining gap, and whether our headline claims are supported.
 
     uv run python -m scripts.jev_assess_work

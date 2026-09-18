@@ -1,12 +1,12 @@
-"""CLI: train one jev_clf arm and evaluate it on val (never test).
+"""CLI: train one jeff arm and evaluate it on val (never test).
 
 Examples (from the repo root):
 
-    uv run python -m scripts.jev_clf_train_arm --arm gt_only \
-        --config configs/jev_clf_gt_only.yaml
+    uv run python -m scripts.jeff_train_arm --arm gt_only \
+        --config configs/jeff_gt_only.yaml
 
-    uv run python -m scripts.jev_clf_train_arm --arm distill_full \
-        --config configs/jev_clf_distill_full.yaml \
+    uv run python -m scripts.jeff_train_arm --arm distill_full \
+        --config configs/jeff_distill_full.yaml \
         --data data/factcheck/ground_truth.jsonl \
         --data data/factcheck/distill_full.jsonl \
         --label-source ""          # no label_source filter
@@ -17,7 +17,7 @@ What it does, in order:
      ``label_source`` (config ``data.label_source`` / ``--label-source``).
   2. Asserts no test-split row reaches ``train()`` — test is reserved for
      the final cross-arm comparison.
-  3. Calls ``jev_clf.train.train`` (soft-target CE + val calibration +
+  3. Calls ``jeff.train.train`` (soft-target CE + val calibration +
      its own guarded MLflow run).
   4. Flattens ``out_dir/checkpoint/`` into ``out_dir/`` so the arm dir has
      the frozen layout ``{head.pt, config.json, calibration.json,
@@ -46,10 +46,10 @@ import yaml
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
-from jev_clf.eval import ground_truth_metrics, reliability_bins  # noqa: E402
-from jev_clf.model import OptionScorer  # noqa: E402
-from jev_clf.schema import PredictionRow, read_rows, write_predictions  # noqa: E402
-from jev_clf.train import ARTIFACTS, MLFLOW_EXPERIMENT, MLFLOW_URI, train  # noqa: E402
+from jeff.eval import ground_truth_metrics, reliability_bins  # noqa: E402
+from jeff.model import OptionScorer  # noqa: E402
+from jeff.schema import PredictionRow, read_rows, write_predictions  # noqa: E402
+from jeff.train import ARTIFACTS, MLFLOW_EXPERIMENT, MLFLOW_URI, train  # noqa: E402
 
 
 def _peak_rss_gb() -> float:
@@ -109,7 +109,7 @@ def _log_mlflow(arm: str, cfg: dict, metrics: dict, out_dir: Path) -> str | None
 
         mlflow.set_tracking_uri(MLFLOW_URI)
         mlflow.set_experiment(MLFLOW_EXPERIMENT)
-        with mlflow.start_run(run_name=f"jev-clf-{arm}") as run:
+        with mlflow.start_run(run_name=f"jeff-{arm}") as run:
             mlflow.set_tag("arm", arm)
             params: dict = {}
             _flatten("", cfg, params)
@@ -145,7 +145,7 @@ def main() -> None:
         help="keep only rows with this label_source; '' disables the filter "
         "(default: config data.label_source, else no filter)",
     )
-    parser.add_argument("--out", default=None, help="default artifacts/jev_clf/<arm>")
+    parser.add_argument("--out", default=None, help="default artifacts/jeff/<arm>")
     parser.add_argument(
         "--preds-out",
         default=None,

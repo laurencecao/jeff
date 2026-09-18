@@ -9,7 +9,7 @@ Three things:
      advertises flat latency in question count; an autoregressive readout cannot
      match that, and this quantifies the difference rather than asserting it.
 
-    uv run python -m scripts.jev_clf_client_demo
+    uv run python -m scripts.jeff_client_demo
 """
 
 from __future__ import annotations
@@ -24,9 +24,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jev_clf import schema as S  # noqa: E402
-from jev_clf.client import Choice, Noul, Score, SystemOneClient  # noqa: E402
-from jev_clf.jev import JevTeacher  # noqa: E402
+from jeff import schema as S  # noqa: E402
+from jeff.client import Choice, Noul, Score, SystemOneClient  # noqa: E402
+from jeff.jev import JevTeacher  # noqa: E402
 
 N_STATES = 3
 LATENCY_KS = (1, 2, 4, 8)

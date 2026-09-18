@@ -20,10 +20,10 @@ from transformers import AutoTokenizer
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from jev_clf import schema as S  # noqa: E402
-from jev_clf.model import state_to_text  # noqa: E402
-from scripts.jev_clf_lm_eval import SYSTEM, build_inputs, label_variants  # noqa: E402
-from scripts.jev_clf_lora_train import build_example  # noqa: E402
+from jeff import schema as S  # noqa: E402
+from jeff.model import state_to_text  # noqa: E402
+from scripts.jeff_lm_eval import SYSTEM, build_inputs, label_variants  # noqa: E402
+from scripts.jeff_lora_train import build_example  # noqa: E402
 
 TOKENIZER = os.environ.get("JEVCLF_TOKENIZER", "Qwen/Qwen2.5-1.5B-Instruct")
 CFG = {
