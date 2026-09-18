@@ -8,3 +8,4 @@ epoch 3: train_loss=0.1383 val_loss=nan
 epoch 4: train_loss=0.1379 val_loss=nan
 epoch 5: train_loss=0.1378 val_loss=nan
 epoch 6: train_loss=0.1378 val_loss=nan
+epoch 7: train_loss=0.1378 val_loss=nan
