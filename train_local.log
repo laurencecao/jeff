@@ -1,0 +1,7 @@
+START 2026-09-18 12:13:55
+Loading weights:   0%|          | 0/290 [00:00<?, ?it/s]Loading weights: 100%|██████████| 290/290 [00:00<00:00, 6946.00it/s]
+/tmp/train_local.sh: line 6: 81650 Killed: 9               uv run python -m jev_clf.train --config configs/jev_clf_option_scorer_lm.yaml --out artifacts/jev_clf/option_scorer_lm
+TRAIN_RC=137 2026-09-18 12:27:21
+epoch 0: train_loss=0.1394 val_loss=nan
+/Users/djl/.local/share/uv/python/cpython-3.12.13-macos-aarch64-none/lib/python3.12/multiprocessing/resource_tracker.py:279: UserWarning: resource_tracker: There appear to be 1 leaked semaphore objects to clean up at shutdown
+  warnings.warn('resource_tracker: There appear to be %d '
