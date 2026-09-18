@@ -282,6 +282,8 @@ def main() -> None:
     ap.add_argument("--max-rows", type=int, default=0, help="subsample train rows (smoke test)")
     ap.add_argument("--epochs", type=int, default=0, help="override config epochs")
     ap.add_argument("--out-dir", default=None, help="override config out_dir")
+    ap.add_argument("--resume", action="store_true",
+                    help="skip epochs already completed in out_dir/train_state.json")
     args = ap.parse_args()
 
     cfg = load_config(args.config)
@@ -355,6 +357,26 @@ def main() -> None:
         task_type="CAUSAL_LM",
     )
     model = get_peft_model(model, lora_cfg)
+
+    # --- resume from a previous epoch checkpoint --------------------------
+    # Only valid because the LoRA is saved (not the optimizer state), so this
+    # resumes from the last COMPLETED epoch with a fresh optimizer. Acceptable
+    # here: the cosine schedule is short and the run is 2 epochs. It is not a
+    # bit-exact continuation and must not be described as one.
+    start_epoch = 0
+    prior_history: list[dict] = []
+    prior_val_loss = None
+    state_path = out_dir / "train_state.json"
+    if args.resume and state_path.exists() and (out_dir / "adapter_model.safetensors").exists():
+        prior = json.loads(state_path.read_text())
+        start_epoch = int(prior.get("epochs_done", 0))
+        prior_history = list(prior.get("history", []))
+        prior_val_loss = prior.get("val_loss")
+        from peft import PeftModel
+        model = PeftModel.from_pretrained(model, out_dir, is_trainable=True)
+        print(f"[resume] loaded {out_dir} at epoch {start_epoch} "
+              f"(prior val_loss={prior_val_loss}); training epochs "
+              f"{start_epoch}..{opt['epochs'] - 1}", flush=True)
     if cfg.get("gradient_checkpointing"):
         model.enable_input_require_grads()
     model.print_trainable_parameters()
@@ -380,17 +402,19 @@ def main() -> None:
         lr=opt["lr"], weight_decay=opt["weight_decay"],
     )
     steps_per_epoch = math.ceil(len(train_ex) / (opt["batch_size"] * opt["grad_accum"]))
-    total_steps = steps_per_epoch * opt["epochs"]
+    remaining_epochs = opt["epochs"] - start_epoch
+    total_steps = steps_per_epoch * remaining_epochs
     warmup = max(1, int(total_steps * opt["warmup_ratio"]))
     sched = get_cosine_schedule_with_warmup(optimizer, warmup, total_steps)
-    print(f"[train] epochs={opt['epochs']} steps/epoch={steps_per_epoch} "
-          f"total={total_steps} warmup={warmup} eff_batch={opt['batch_size'] * opt['grad_accum']}")
+    print(f"[train] epochs={opt['epochs']} (starting at {start_epoch}) "
+          f"steps/epoch={steps_per_epoch} total={total_steps} warmup={warmup} "
+          f"eff_batch={opt['batch_size'] * opt['grad_accum']}")
 
-    history = []
+    history = list(prior_history)
     rng = random.Random(seed)
     gstep = 0
     model.train()
-    for epoch in range(opt["epochs"]):
+    for epoch in range(start_epoch, opt["epochs"]):
         order = list(range(len(train_ex)))
         rng.shuffle(order)
         accum_loss, accum_n = 0.0, 0
@@ -436,6 +460,19 @@ def main() -> None:
         print(f"[train] epoch={epoch} done val_loss={val_loss:.4f} "
               f"epoch_time={time.perf_counter() - t_ep:.0f}s", flush=True)
         history.append({"step": gstep, "epoch": epoch, "val_loss": val_loss})
+
+        # Checkpoint at every epoch boundary. Colab sessions are recycled and
+        # /content is wiped with them, so a run that only saves at the very end
+        # can lose hours of compute in a single recycle event. Writing here
+        # means a kill mid-epoch costs at most one epoch, not the whole run.
+        # --resume continues from the highest epoch already on disk.
+        model.save_pretrained(out_dir)
+        tok.save_pretrained(out_dir)
+        (out_dir / "train_state.json").write_text(
+            json.dumps({"epochs_done": epoch + 1, "gstep": gstep,
+                        "val_loss": val_loss, "history": history}) + "\n"
+        )
+        print(f"[ckpt] saved epoch {epoch + 1}/{opt['epochs']} to {out_dir}", flush=True)
 
     model.save_pretrained(out_dir)
     tok.save_pretrained(out_dir)
