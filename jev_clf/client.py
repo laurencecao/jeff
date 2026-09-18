@@ -17,10 +17,13 @@ our local model by changing one line, because the *contract* is the same:
     result.scores["quality"].probabilities
 
 Differences from the hosted service, stated plainly:
-  * one forward pass PER QUESTION (we share the prompt, not the compute). A
-    hosted Jev evaluates every question over the state in one pass; an
-    autoregressive model cannot do that, because the answer for each question
-    is a different next token.
+  * mostly one forward pass PER QUESTION (we share the prompt, not the
+    compute). A hosted Jev evaluates every question over the state in one
+    pass; an autoregressive model cannot do that, because the answer for
+    each question is a different next token. The first-token readout (labels
+    that are single, distinct first tokens, e.g. choice and yes/no) takes
+    exactly one pass; the sequence readout (labels sharing a first token,
+    e.g. the score levels "0".."3") takes one EXTRA pass per label.
   * being text-conditioned is preserved: the label set and each label's
     definition arrive in the prompt at call time, so a differently-worded
     question or a different NUMBER of labels works without retraining.
@@ -42,8 +45,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from jev_clf import readout  # noqa: E402
 from jev_clf import schema as S  # noqa: E402
-from scripts.jev_clf_lm_eval import build_inputs, label_variants  # noqa: E402
+from scripts.jev_clf_lm_eval import build_inputs  # noqa: E402
 
 DEFAULT_BASE = "Qwen/Qwen3-4B-Instruct-2507"
 DEFAULT_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b")
@@ -82,6 +86,7 @@ class Result:
     nouls: dict[str, NoulAnswer] = field(default_factory=dict)
     scores: dict[str, ScoreAnswer] = field(default_factory=dict)
     n_forward_passes: int = 0
+    readout_modes: dict[str, str] = field(default_factory=dict)  # qid -> resolved readout
 
 
 # --------------------------------------------------------------------------
@@ -145,23 +150,28 @@ class SystemOneClient:
 
     def _distribution(self, state: Any, question: S.Question) -> dict[str, float]:
         labels = S.label_space(question)
-        variants = label_variants(self.tokenizer, labels)
         text = build_inputs(self.tokenizer, state, question)
-
-        enc = self.tokenizer(
-            text, return_tensors="pt", truncation=True, max_length=self.max_length
-        ).to(self.device)
-        with torch.no_grad():
-            logits = self.model(**enc).logits[0, -1].float()
-        sub = torch.tensor([logits[variants[label][0]] for label in labels])
-        probs = torch.softmax(sub, dim=-1)
-        return {label: float(p) for label, p in zip(labels, probs)}
+        # readout.distribution resolves the readout per question: first_token
+        # for labels that are single, distinct first tokens (the benchmarked
+        # path, kept verbatim); sequence for label sets that share a first
+        # token, where the first-token readout degenerates.
+        return readout.distribution(
+            self.model,
+            self.tokenizer,
+            text,
+            labels,
+            device=self.device,
+            max_length=self.max_length,
+        )
 
     def system_one(self, state: Any, questions: dict[str, S.Question]) -> Result:
         result = Result(model=self.model_id)
         for qid, question in questions.items():
             probs = self._distribution(state, question)
             result.n_forward_passes += 1
+            result.readout_modes[qid] = readout.choose_mode(
+                readout.label_token_variants(self.tokenizer, S.label_space(question))
+            )
             conf = max(probs.values())
 
             if isinstance(question, S.NoulQuestion):

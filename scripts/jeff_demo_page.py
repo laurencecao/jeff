@@ -42,6 +42,7 @@ PAGE = """<!DOCTYPE html>
   .bar { height:20px; border-radius:5px; background:#8882; overflow:hidden; margin:.2rem 0 .6rem; }
   .bar > div { height:100%; }
   .lab { display:flex; justify-content:space-between; font-size:.9rem; }
+  .lvl { margin-bottom:.15rem; }
   .muted { color:#888; font-size:.88rem; }
   .err { color:#c33; font-weight:600; }
   table { border-collapse:collapse; width:100%; margin-top:.6rem; }
@@ -71,19 +72,37 @@ PAGE = """<!DOCTYPE html>
  <tr><td>TypeSafe Jev 1.13.0 (hosted)</td><td class="num">0.8283</td><td class="num">0.0790</td></tr>
  <tr><td><strong>Jeff</strong> (this, local 4B)</td><td class="num">0.8174</td><td class="num">0.0805</td></tr>
 </table>
-<p class="note">Calibration: stated confidence vs actual correctness, measured on
-human labels. Low-confidence behaviour is where the two differ most.</p>
+<p class="muted">Calibration: stated confidence vs actual correctness, measured on human labels. Low-confidence behaviour is where the two differ most.</p>
+<p class="muted">The accuracy table is the sealed choice-verdict benchmark; the Score and Noul cards above are a small-scale demonstration on the same adapter, not part of that metric.</p>
 <img src="/static/calibration_plot.png" alt="reliability diagram">
 
 <script>
 const C = {supported:"#2a8", refuted:"#c44", not_enough_info:"#999"};
-function bars(probs){
-  return Object.entries(probs).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
-    const col = C[k] || "#777";
-    return `<div class="lab"><span>${k}</span><span>${(v*100).toFixed(2)}%</span></div>
-            <div class="bar"><div style="width:${(v*100).toFixed(1)}%;background:${col}"></div></div>`;
-  }).join("");
-}
+  function bars(probs){
+    return Object.entries(probs||{}).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+      const col = C[k] || "#777";
+      return `<div class="lab"><span>${k}</span><span>${(v*100).toFixed(2)}%</span></div>
+              <div class="bar"><div style="width:${(v*100).toFixed(1)}%;background:${col}"></div></div>`;
+    }).join("");
+  }
+  // Levels, not probability, order a score question: the ordinal scale is the meaning.
+  function scoreRows(s){
+    const probs=(s&&s.probabilities)||{};
+    const crit=(s&&Array.isArray(s.criteria))?s.criteria:[];
+    const keys=Object.keys(probs).sort((a,b)=>(Number(a)-Number(b))||a.localeCompare(b));
+    return keys.map(k=>{
+      const p=probs[k]||0;
+      const text=crit[Number(k)]||("level "+k);
+      return `<div class="lvl"><div class="lab"><span>${k}: ${text}</span><span>${(p*100).toFixed(2)}%</span></div>
+              <div class="bar"><div style="width:${(p*100).toFixed(1)}%;background:#2a8"></div></div></div>`;
+    }).join("");
+  }
+  // Optional readout field (added by the readout layer); show it if present, nothing if not.
+  function readout(q){
+    const r=q&&q.readout;
+    if(r===undefined||r===null) return "";
+    return `<div class="muted">readout: ${typeof r==="string"?r:JSON.stringify(r)}</div>`;
+  }
 async function go(){
   const b=document.getElementById("b"); b.disabled=true; b.textContent="Scoring…";
   document.getElementById("lat").textContent="";
@@ -100,14 +119,25 @@ async function go(){
   try{
     const r=await fetch("/v1/systemone",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
     if(!r.ok) throw new Error((await r.text()).slice(0,200));
-    const j=await r.json();
-    const v=j.verdict, s=j.strength;
-    document.getElementById("out").innerHTML =
-      `<div class="card"><div class="verdict">${v.choice.toUpperCase()}</div>` + bars(v.probabilities) +
-      `<div class="muted">confidence ${(v.confidence*100).toFixed(1)}% &middot; latency ${j.latency_ms} ms</div></div>` +
-      `<div class="card"><strong>Score — how much evidence?</strong> ${(s.score||0).toFixed(2)} / 3
-         <div class="muted">${Array.isArray(s.criteria) ? s.criteria.join(" · ") : ""}</div></div>` +
-      `<div class="card"><strong>Noul — contains a date or number?</strong> ${j.has_date.noul.toFixed(3)}</div>`;
+      const j=await r.json()||{};
+      const v=j.verdict||{}, s=j.strength||{}, nd=j.has_date||{};
+      const ny=typeof nd.noul==="number"?nd.noul:0;
+      const conf=typeof v.confidence==="number"?`confidence ${(v.confidence*100).toFixed(1)}%`:"";
+      const lat=typeof j.latency_ms==="number"?`latency ${j.latency_ms} ms`:"";
+      const skeys=Object.keys(s.probabilities||{}).sort((a,b)=>Number(a)-Number(b));
+      document.getElementById("out").innerHTML =
+        `<div class="muted" style="margin-bottom:.7rem">${[j.model||"?",lat].filter(Boolean).join(" &middot; ")}</div>` +
+        `<div class="card"><div class="verdict">${(v.choice||"?").toUpperCase()}</div>` + bars(v.probabilities||{}) + readout(v) +
+        `<div class="muted">${[conf,lat].filter(Boolean).join(" &middot; ")}</div></div>` +
+        `<div class="card"><strong>Score — how much evidence?</strong> expected ${(typeof s.score==="number"?s.score:0).toFixed(2)}` +
+        (skeys.length?" / "+skeys[skeys.length-1]:"") +
+        scoreRows(s) + readout(s) + `</div>` +
+        `<div class="card"><strong>Noul — contains a date or number?</strong>` + readout(nd) +
+        `<div class="lab"><span>yes</span><span>${(ny*100).toFixed(2)}%</span></div>` +
+        `<div class="bar"><div style="width:${(ny*100).toFixed(1)}%;background:#2a8"></div></div>` +
+        `<div class="lab"><span>no</span><span>${((1-ny)*100).toFixed(2)}%</span></div>` +
+        `<div class="bar"><div style="width:${((1-ny)*100).toFixed(1)}%;background:#999"></div></div>` +
+        `<div class="muted">P(yes) = ${ny.toFixed(4)}</div></div>`;
     document.getElementById("lat").textContent = "";
   }catch(e){
     document.getElementById("out").innerHTML = `<div class="err">error: ${e.message}</div>`;

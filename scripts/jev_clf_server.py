@@ -20,6 +20,7 @@ from __future__ import annotations
 from typing import Any
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -27,6 +28,7 @@ from pathlib import Path
 import torch
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +40,19 @@ from jev_clf.client import SystemOneClient  # noqa: E402
 
 MODEL_ID = "jeff-1"
 PORT = 8079
+STATIC_DIR = ROOT / "results" / "static"
+
+# Which adapter serves the DEMO.
+#
+# artifacts/jev_clf/lora_4b is the choice-accuracy champion, but it was trained
+# on 9,119 Choice rows and ZERO Noul/Score rows, so those two primitives are
+# untrained in it -- measured, its score output is dead-uniform 0.25 per level.
+# lora_4b_multi adds 1,800 Score and 1,200 Noul rows. On the choice benchmark
+# the two are a wash (val 0.7839 vs 0.7789, a 1-row difference, inside the
+# 2-row noise floor), so the multi adapter costs nothing measurable and is the
+# only one that answers Score at all. Override with JEVCLF_DEMO_{BASE,ADAPTER}.
+DEFAULT_DEMO_BASE = "Qwen/Qwen3-4B-Instruct-2507"
+DEFAULT_DEMO_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b_multi")
 
 app = FastAPI(title="jev_clf", description="An independent, decision-only fact-checking model.")
 _client: SystemOneClient | None = None
@@ -46,7 +61,10 @@ _client: SystemOneClient | None = None
 def get_client() -> SystemOneClient:
     global _client
     if _client is None:
-        _client = SystemOneClient()
+        _client = SystemOneClient(
+            base_model=os.environ.get("JEVCLF_DEMO_BASE", DEFAULT_DEMO_BASE),
+            adapter=os.environ.get("JEVCLF_DEMO_ADAPTER", DEFAULT_DEMO_ADAPTER),
+        )
     return _client
 
 
@@ -137,9 +155,20 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
     except Exception as exc:
         raise HTTPException(500, f"inference failed: {exc}") from exc
 
-    body: dict = {"model": MODEL_ID, "latency_ms": round((time.perf_counter() - t0) * 1000, 1)}
+    # Report the ACTUAL loaded model, not the static catalogue id: which
+    # adapter is serving decides whether the Noul and Score primitives are
+    # trained at all (lora_4b is Choice-only).
+    body: dict = {
+        "model": client.model_id,
+        "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+    }
     for qid in questions:
         q = questions[qid]
+        # `readout` is informational: it tells a caller whether this question's
+        # answer came from the first-token or the whole-sequence readout. Label
+        # sets that share a first token (the score levels "0".."3") cannot use
+        # the first-token readout at all.
+        mode = out.readout_modes.get(qid)
         if isinstance(q, S.NoulQuestion):
             body[qid] = {"type": "noul", "noul": round(out.nouls[qid].noul, 6)}
         elif isinstance(q, S.ScoreQuestion):
@@ -153,6 +182,8 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
             body[qid] = {"type": "choice", "choice": c.choice,
                          "probabilities": {k: round(v, 6) for k, v in c.probabilities.items()},
                          "confidence": round(c.confidence, 6)}
+        if mode:
+            body[qid]["readout"] = mode
     return JSONResponse(body)
 
 
@@ -161,6 +192,13 @@ def index() -> HTMLResponse:
     from scripts.jeff_demo_page import demo_page
     return demo_page()
 
+
+# --- static files ----------------------------------------------------------
+
+
+if STATIC_DIR.is_dir():
+    # A missing plot should never keep the server from booting.
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 def main() -> None:
