@@ -182,7 +182,13 @@ class ZeroShotNLI:
         self.max_length = max_length
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
-        self.device = device or ("mps" if torch.backends.mps.is_available() else "cpu")
+        self.device = device or (
+            "cuda"
+            if torch.cuda.is_available()
+            else "mps"
+            if torch.backends.mps.is_available()
+            else "cpu"
+        )
         self.model.to(self.device)
         self.model.eval()
 

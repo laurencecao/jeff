@@ -41,10 +41,19 @@ MLFLOW_EXPERIMENT = "jev-clf"
 # ---------------------------------------------------------------------------
 
 def resolve_device(cfg: dict) -> torch.device:
-    """Device from cfg, or auto: MPS if available else CPU."""
+    """Device from cfg, or auto: CUDA if available, else MPS, else CPU.
+
+    The previous version only knew about MPS and silently picked CPU on a CUDA
+    box, which made an A100 run spin the trainer on CPU at ~600 cpu-seconds per
+    20 wall-seconds with the GPU at 0%.
+    """
     want = cfg.get("device", "auto")
     if want == "auto":
-        return torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
     return torch.device(want)
 
 
