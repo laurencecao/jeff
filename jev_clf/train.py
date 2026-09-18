@@ -87,10 +87,14 @@ def batch_loss(
     rows: list[DecisionRow],
     cfg: dict,
 ) -> tuple[torch.Tensor, int]:
-    """Weighted soft-CE summed over every question of every row in the batch.
+    """MEAN weighted soft-CE per (row, question) pair in the batch.
 
-    Returns (total_loss, n_pairs). The caller divides by batch size (or pair
-    count) — weighting is inside the sum.
+    Returns (mean_loss, n_pairs). Weighting is inside the mean.
+
+    NOTE: this returned a SUM over pairs until it was found to be the cause of
+    `val_loss=nan` on Colab — the reported value scaled with the number of pairs
+    (x20 on 20 val rows, and past float range on 199), which looked like a
+    numerical overflow but was a sum-vs-mean accounting bug.
     """
     logits = model.forward_logits(
         [r.state for r in rows], [r.questions for r in rows]
@@ -102,7 +106,7 @@ def batch_loss(
             pair["labels"], row.targets(pair["question_id"])
         ).to(model.device)
         total = total + soft_ce(pair["logits"], target, row_weight(row, cfg))
-    return total, len(logits)
+    return total / max(len(logits), 1), len(logits)
 
 
 # ---------------------------------------------------------------------------
@@ -308,8 +312,8 @@ def train(rows: list[DecisionRow], cfg: dict, out_dir: str | Path) -> dict:
         epoch_loss = 0.0
         for i in range(0, len(order), batch_size):
             batch = order[i : i + batch_size]
-            loss, _ = batch_loss(model, batch, cfg)
-            loss = loss / len(batch)
+            loss, _ = batch_loss(model, batch, cfg)  # already a mean per pair
+            loss = loss / len(batch)  # scale for gradient accumulation
             opt.zero_grad()
             loss.backward()
             opt.step()
@@ -322,8 +326,8 @@ def train(rows: list[DecisionRow], cfg: dict, out_dir: str | Path) -> dict:
         if val_rows:
             model.eval()
             with torch.no_grad():
-                vl, _ = batch_loss(model, val_rows, cfg)
-                val_loss = float(vl / len(val_rows))
+                vl, _ = batch_loss(model, val_rows, cfg)  # already a mean per pair
+                val_loss = float(vl)
         history.append({"epoch": epoch, "train_loss": epoch_loss, "val_loss": val_loss})
         print(f"epoch {epoch}: train_loss={epoch_loss:.4f} val_loss={val_loss:.4f}")
 
