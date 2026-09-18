@@ -34,7 +34,7 @@ if str(ROOT) not in sys.path:
 from jeff import schema as S  # noqa: E402
 from jeff.client import SystemOneClient  # noqa: E402
 
-MODEL_ID = "jeff-1.0"
+MODEL_ID = "jeff-1"
 PORT = 8078
 
 app = FastAPI(title="jeff", description="An independent, decision-only fact-checking model.")

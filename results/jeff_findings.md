@@ -161,5 +161,5 @@ uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen3-4B-Instruct-2507 \
   --adapter artifacts/jeff/lora_4b --split test --readout first_token \
   --dtype bfloat16 --out results/lm_eval_lora_4b_test.json
 uv run python -m scripts.jeff_final_report   # -> results/jeff_final.md
-uv run python -m scripts.jev_assess_work        # Jev's assessment
+uv run python -m scripts.jeff_assess_work        # Jev's assessment
 ```

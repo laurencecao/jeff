@@ -5,7 +5,7 @@ and that adding questions barely changes response time. That is a concrete,
 falsifiable statement about the API, so measure it: hold the state fixed, vary
 the number of questions, and record latency and token usage.
 
-    uv run python -m scripts.jev_parallel_probe
+    uv run python -m scripts.jeff_parallel_probe
 """
 
 from __future__ import annotations
