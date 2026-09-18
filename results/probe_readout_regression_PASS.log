@@ -1,0 +1,20 @@
+[gate] loading client with lora_4b
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 5904.77it/s]
+[gate] client.model_id = Qwen/Qwen3-4B-Instruct-2507+lora_4b
+  fever-train-a9a5ee78-5de6-4421-855   mode=first_token argmax supported        (ref supported       ) maxdelta=4.08e-08
+  fever-train-2e565279-aad0-4ef9-890   mode=first_token argmax supported        (ref supported       ) maxdelta=6.98e-08
+  fever-train-6696a2b7-776e-4425-b64   mode=first_token argmax supported        (ref supported       ) maxdelta=5.42e-08
+  fever-train-11b0a114-92a4-4b6c-bce   mode=first_token argmax supported        (ref supported       ) maxdelta=3.77e-08
+  fever-dev-10b0c42c-eca7-43af-84ec-   mode=first_token argmax supported        (ref supported       ) maxdelta=2.40e-08
+  fever-train-d76fcd59-c2e4-46d7-8ed   mode=first_token argmax supported        (ref supported       ) maxdelta=2.06e-08
+  fever-train-5937b299-dc48-4e6f-963   mode=first_token argmax supported        (ref supported       ) maxdelta=2.29e-08
+  fever-train-513fdf3a-f1f3-4027-b1d   mode=first_token argmax supported        (ref supported       ) maxdelta=3.32e-08
+  fever-train-84139fbd-7670-46ad-847   mode=first_token argmax supported        (ref supported       ) maxdelta=1.78e-08
+  fever-train-fa639404-efb9-475f-976   mode=first_token argmax supported        (ref supported       ) maxdelta=2.88e-08
+  fever-train-569856cb-c16d-40ed-85b   mode=first_token argmax supported        (ref supported       ) maxdelta=0.00e+00
+  fever-train-27b16e20-e870-4a41-95b   mode=first_token argmax supported        (ref supported       ) maxdelta=3.22e-08
+
+[gate] rows checked      = 12
+[gate] argmax mismatches = 0
+[gate] worst prob delta  = 6.980e-08
+[gate] VERDICT: PASS - choice path unchanged

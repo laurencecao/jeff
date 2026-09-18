@@ -1,7 +1,13 @@
 """Merge the two LoRA adapters and evaluate the result.
 
-lora_4b        : Choice-only training - our accuracy champion (0.8174 @ n=9730)
+lora_4b        : Choice-only training - val accuracy champion (0.7839 @ n=199;
+                 0.8143 @ n=9730, per results/lm_eval_4b_large.json)
 lora_4b_multi  : Choice + Noul + Score training - primitive coverage
+                 (0.8183 @ n=9730, per results/lm_eval_4b_multi_large.json)
+
+NOTE: the merge below was never validated and is not a shipped arm. The 0.8174
+that previously appeared here was a stale figure; the measured n=9730 accuracy
+for lora_4b is 0.8143.
 
 Both share the same base model, rank, alpha and target modules, so a weight-space
 merge is safe. The question is whether the merged model keeps the accuracy AND

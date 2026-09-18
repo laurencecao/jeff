@@ -3,10 +3,17 @@ change a single prediction.
 
 Compares, on val rows, the probabilities the CLIENT produces (which now goes
 through readout.distribution) against the stored predictions the BENCHMARK
-harness produced with its own inline first-token readout
-(data/factcheck/preds_autoresearch_val.jsonl, adapter lora_4b_multi).
+harness produced with its own inline first-token readout.
 
-Both used the same adapter, so any difference is caused by the refactor.
+The adapter MUST match the one that produced the reference file or the gate is
+meaningless. `preds_autoresearch_val.jsonl` was written by the `lora_4b`
+adapter -- its rows carry `"model": "Qwen/Qwen3-4B-Instruct-2507+lora_4b"` -- so
+this gate loads `lora_4b`. An earlier version loaded `lora_4b_multi`, which
+compared two different adapters and could neither pass nor fail informatively.
+
+Note this gate covers the champion's val path. The scale-split predictions
+(`preds_ours_large.jsonl`) come from `lora_4b_multi` instead; see
+scripts/probe_adapter_primitive.py for the multi-adapter side.
 """
 
 from __future__ import annotations
@@ -24,7 +31,8 @@ from jev_clf import schema as S  # noqa: E402
 from jev_clf.client import SystemOneClient  # noqa: E402
 
 N_ROWS = 12
-ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b_multi")
+# Must match the adapter recorded in REF's own rows (lora_4b), not the demo arm.
+ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b")
 REF = ROOT / "data/factcheck/preds_autoresearch_val.jsonl"
 
 
