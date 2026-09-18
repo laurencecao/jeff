@@ -1,0 +1,49 @@
+{
+  "n": 9730,
+  "labels": [
+    "not_enough_info",
+    "refuted",
+    "supported"
+  ],
+  "accuracy": 0.8182939362795478,
+  "macro_f1": 0.7788754937241196,
+  "per_label": {
+    "not_enough_info": {
+      "precision": 0.7622027534418022,
+      "recall": 0.5783475783475783,
+      "f1": 0.6576673866090713,
+      "support": 2106
+    },
+    "refuted": {
+      "precision": 0.7870795107033639,
+      "recall": 0.7940609332819129,
+      "f1": 0.79055480898445,
+      "support": 2593
+    },
+    "supported": {
+      "precision": 0.8493473531544597,
+      "recall": 0.9312263963426755,
+      "f1": 0.8884042855788375,
+      "support": 5031
+    }
+  },
+  "ece": 0.08074845058761182,
+  "brier": 0.28392424534140454,
+  "confusion": {
+    "not_enough_info": {
+      "not_enough_info": 1218,
+      "refuted": 375,
+      "supported": 513
+    },
+    "refuted": {
+      "not_enough_info": 216,
+      "refuted": 2059,
+      "supported": 318
+    },
+    "supported": {
+      "not_enough_info": 164,
+      "refuted": 182,
+      "supported": 4685
+    }
+  }
+}
