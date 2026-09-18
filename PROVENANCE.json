@@ -1,0 +1,339 @@
+{
+  "schema": "researchmax-provenance/v0",
+  "title": "Jeff 1 / jev_clf — local open-source Jev-1.13.0 replacement",
+  "inspired_by": {
+    "pattern": "benchmark table + protocol footnotes + retractions with tells",
+    "arxiv": ""
+  },
+  "benchmark": {
+    "id": "jev_clf_local_factcheck",
+    "task": "Given a claim and evidence passages, return a calibrated distribution over supported | refuted | not_enough_info.",
+    "official_score": {
+      "value": null,
+      "authority": "none — TypeSafe has not published a score on these splits",
+      "direction": "higher",
+      "note": "EVERY Jev number in this record is OUR re-measurement of hosted Jev 1.13.0 on OUR rows. None of it is comparable to any TypeSafe-published figure."
+    },
+    "sealed_splits": {
+      "val_n199": {
+        "n": 199,
+        "gold_file": "data/factcheck/ground_truth.jsonl",
+        "gold_split_field": "val",
+        "ours_adapter": "artifacts/jev_clf/lora_4b",
+        "ours_preds": "data/factcheck/preds_autoresearch_val.jsonl",
+        "jev_preds": "data/factcheck/preds_jev_val.jsonl",
+        "naming_trap": "Both release docs originally called this split='test'. It is split='val'. ground_truth.jsonl holds 1589 train / 199 val / 199 test; the 199 split='test' rows are a SEPARATE holdout that was never scored here."
+      },
+      "scale_n9730": {
+        "n": 9730,
+        "gold_file": "data/factcheck/eval_large.jsonl",
+        "ours_adapter": "artifacts/jev_clf/lora_4b_multi",
+        "ours_preds": "data/factcheck/preds_ours_large.jsonl",
+        "jev_preds": "data/factcheck/preds_jev_large.jsonl",
+        "source_counts": {"vitaminc": 3979, "fever": 3910, "scifact": 982, "climate_fever": 859}
+      }
+    },
+    "metrics": [
+      {
+        "name": "val_accuracy",
+        "formula": "mean(argmax(student_probs) == human_label), n=199",
+        "direction": "higher",
+        "ours": 0.7839195979899497,
+        "jev": 0.7688442211055276,
+        "source": "results/jev_clf_autoresearch_last.json ground_truth.accuracy; results/jev_clf_baselines.json"
+      },
+      {
+        "name": "val_macro_f1",
+        "formula": "unweighted mean of per-label F1",
+        "direction": "higher",
+        "ours": 0.7620160733765222,
+        "source": "results/jev_clf_autoresearch_last.json"
+      },
+      {
+        "name": "val_brier",
+        "formula": "mean_i sum_k (p_ik - y_ik)^2",
+        "direction": "lower",
+        "ours": 0.3186011834797141,
+        "source": "results/jev_clf_autoresearch_last.json"
+      },
+      {
+        "name": "val_agreement_with_jev",
+        "formula": "mean(argmax(student_probs) == argmax(jev_probs))",
+        "direction": "higher",
+        "ours": 0.8517587939698492,
+        "source": "results/jev_clf_autoresearch_last.json agreement_top1"
+      },
+      {
+        "name": "val_ece",
+        "formula": "population-weighted ECE, 10 equal-width bins; confidence = max class probability",
+        "direction": "lower",
+        "ours": 0.09019238256416899,
+        "jev": 0.1136683417085427,
+        "caveat": "Our value is max(prob). Jev's val figure as stored uses Jev's own confidence field; the max(prob) value for Jev on val was computed this session (0.13025) but is not in a results JSON.",
+        "source": "results/jev_clf_autoresearch_last.json; results/jev_clf_baselines.json"
+      },
+      {
+        "name": "scale_accuracy",
+        "formula": "mean(argmax(student_probs) == human_label), n=9730",
+        "direction": "higher",
+        "ours": 0.8182939362795478,
+        "jev": 0.8282631038026721,
+        "ours_correct": 7962,
+        "jev_correct": 8059,
+        "delta_rows": -97,
+        "source": "results/lm_eval_4b_multi_large.json; results/jev_large.json"
+      },
+      {
+        "name": "scale_ece_maxprob",
+        "formula": "population-weighted ECE, 10 equal-width bins, confidence = max class probability, identical for both models",
+        "direction": "lower",
+        "ours": 0.08074845058761182,
+        "jev": 0.09321,
+        "note": "ours is from a results JSON; Jev's 0.09321 is recomputed this session from data/factcheck/preds_jev_large.jsonl and is NOT stored in results/jev_large.json.",
+        "source": "results/lm_eval_4b_multi_large.json; scripts/probe_calibration_consistency.py"
+      },
+      {
+        "name": "scale_ece_jev_self_reported",
+        "formula": "same binning, but confidence = Jev's own PredictionRow.confidence field",
+        "direction": "lower",
+        "jev": 0.07895580678314494,
+        "status": "RETRACTED as a comparison to ours",
+        "source": "results/jev_large.json ece"
+      },
+      {
+        "name": "scale_macro_f1",
+        "formula": "unweighted mean of per-label F1",
+        "direction": "higher",
+        "ours": 0.7788754937241196,
+        "jev": 0.7994254905106022,
+        "source": "results/lm_eval_4b_multi_large.json; results/jev_large.json"
+      },
+      {
+        "name": "scale_brier",
+        "formula": "mean_i sum_k (p_ik - y_ik)^2",
+        "direction": "lower",
+        "ours": 0.28392424534140454,
+        "jev": 0.274950058136358,
+        "source": "results/lm_eval_4b_multi_large.json; results/jev_large.json"
+      }
+    ]
+  },
+  "local_metric": {
+    "name": "scale_accuracy",
+    "formula": "mean(argmax(student_probs) == human_label), n=9730, direction higher",
+    "direction": "higher",
+    "gate_deviations": [
+      {
+        "gate": "val_underpowered",
+        "state": "closed_as_decision_instrument",
+        "reason": "val n=199 bootstrap 95% CI is +/-5.6 accuracy points (+/-11 rows), ~7x wider than scale's +/-0.75. Paired McNemar on val: 17 discordant for us, 14 against, z=0.54, p=0.59 — not significant. val and scale DISAGREE on the direction of a 'supported' bias (+2 val rows, -9 scale rows). val is a smoke test only."
+      },
+      {
+        "gate": "choice_readout_bit_identity",
+        "state": "passed",
+        "reason": "scripts/probe_readout_regression.py, fixed this session to load the adapter that actually produced the references (lora_4b, not lora_4b_multi). Result: 12 rows, 0 argmax mismatches, worst prob delta 6.98e-08.",
+        "evidence": "results/probe_readout_regression_PASS.log"
+      }
+    ]
+  },
+  "hardware": {
+    "train": "Google Colab A100 40GB (prior arms: artifacts/jev_clf/lora_4b*/train_metrics.json record adapter_dir under /content/jev/...)",
+    "eval_device_recorded": "mps (Apple M3 Max) per results/jev_clf_autoresearch_last.json",
+    "note": "Training on the local Apple Silicon box is not viable for this corpus: a 4B LoRA at batch 4x2048 exceeds the 36 GB unified pool and OOM-killed at step 2."
+  },
+  "gates": {
+    "val_n": 199,
+    "scale_n": 9730,
+    "val_mcnemar": {"ours_correct": 156, "jev_correct": 153, "ours_only": 17, "jev_only": 14, "z": 0.54, "p": 0.59, "significant": false, "arithmetic_check": "156-153 = 3 = 17-14"},
+    "scale_mcnemar": {"ours_correct": 7962, "jev_correct": 8059, "ours_only": 497, "jev_only": 594, "z": 2.94, "p": 0.0033, "significant": true, "ci95_paired_diff": [-0.0165, -0.0035]},
+    "choice_readout_bit_identity": {"proven": true, "rows": 12, "argmax_mismatches": 0, "worst_prob_delta": 6.98e-08, "evidence": "results/probe_readout_regression_PASS.log"},
+    "fail_closed_empty_eval": "jev_clf/eval.py raises on zero matched pairs rather than reporting 0.0",
+    "never_train_or_eval_test_split": "load_sft_rows asserts no split=='test' row reaches training"
+  },
+  "runs": [
+    {
+      "id": 1,
+      "role": "keep",
+      "arm": "4B_zero_shot",
+      "change": "Qwen3-4B-Instruct-2507, no adapter — establishes that capacity, not the readout, was the constraint",
+      "val_accuracy": null,
+      "note": "Preceded the LoRA arm; the 1.5B baseline below motivated moving to 4B."
+    },
+    {
+      "id": 2,
+      "role": "discard",
+      "arm": "1.5B_lora_choice_only",
+      "change": "Qwen2.5-1.5B-Instruct + LoRA r=16 on 9119 Choice rows, 2 epochs",
+      "val_accuracy": 0.7587939698492462,
+      "val_ece": 0.11095155917819424,
+      "score_path": "results/lm_eval_lora_test.json",
+      "note": "Superseded by the 4B arm. README.md still advertises this as the model; the release docs supersede it."
+    },
+    {
+      "id": 3,
+      "role": "keep",
+      "arm": "4B_lora_choice_only",
+      "change": "Qwen3-4B-Instruct-2507 + LoRA r=16 on 9119 Choice rows, 2 epochs, lr 1e-4, seed 42",
+      "val_accuracy": 0.7839195979899497,
+      "val_ece": 0.09019238256416899,
+      "val_macro_f1": 0.7620160733765222,
+      "val_brier": 0.3186011834797141,
+      "val_agreement_top1": 0.8517587939698492,
+      "scale_accuracy": 0.8142857142857143,
+      "scale_ece": 0.07093822129706315,
+      "n_train": 9119,
+      "score_path": "results/jev_clf_autoresearch_last.json",
+      "scale_path": "results/lm_eval_4b_large.json",
+      "train_path": "artifacts/jev_clf/lora_4b/train_metrics.json",
+      "note": "VAL champion and the benchmarked loop path. Score primitive is untrained here (dead-uniform), which is why the demo uses the multi arm."
+    },
+    {
+      "id": 4,
+      "role": "keep",
+      "arm": "4B_lora_multi",
+      "change": "same 4B LoRA plus 1800 Score + 1200 Noul teacher rows (n_train=12119)",
+      "val_accuracy": 0.778894,
+      "val_accuracy_status": "computed from 155/199; not stored in a metrics JSON",
+      "scale_accuracy": 0.8182939362795478,
+      "scale_ece": 0.08074845058761182,
+      "scale_macro_f1": 0.7788754937241196,
+      "scale_brier": 0.28392424534140454,
+      "n_train": 12119,
+      "score_path": "results/lm_eval_4b_multi_large.json",
+      "train_path": "artifacts/jev_clf/lora_4b_multi/train_metrics.json",
+      "note": "SCALE and demo arm. Its val is 1 row below run 3 — inside noise — while gaining the Score and Noul primitives."
+    },
+    {
+      "id": 5,
+      "role": "keep",
+      "arm": "readout_sequence_for_score",
+      "change": "route Score through jev_clf/readout.py: first-token only when all labels have DISTINCT first tokens, else whole-sequence",
+      "metric_delta": 0.0,
+      "note": "Capability fix, not accuracy. Score labels ' 0'..' 3' tokenize to [220,15..18] and share first token 220, so the first-token readout read one logit four times and Score returned a constant 0.25. Verified costless for Choice by the bit-identity gate (run id 6)."
+    },
+    {
+      "id": 6,
+      "role": "keep",
+      "arm": "reporting_calibration_definition",
+      "change": "One confidence definition (max class probability) for both models and both plot panels",
+      "metric_delta": 0.0,
+      "note": "Reporting fix; the benchmark metric reproduced exactly. See flagged_runs for the retraction it corrects."
+    },
+    {
+      "id": 7,
+      "role": "pending",
+      "arm": "4B_lora_soft_distill",
+      "change": "CE + 1.0 * mean_rows KL(teacher || student) at the first supervised position, over the same 12119 rows",
+      "prediction_recorded_before_scoring": "PREREGISTRATION_soft_distill.md",
+      "note": "TRAINED AND SCORED — see the run record below once measured. Config configs/jev_clf_lora_soft.yaml; adapter artifacts/jev_clf/lora_4b_soft."
+    }
+  ],
+  "flagged_runs": [
+    {
+      "id": "retraction-calibration-plot-jev-ece-0790",
+      "role": "retracted",
+      "artifact": "results/calibration_plot.png and results/static/calibration_plot.png, plus the demo page and GET /v1/models",
+      "what_it_looked_like": "Jev better calibrated than Jeff 1 on scale: Jev ECE 0.0790 vs ours 0.0807",
+      "tell": "Jev's stored 'confidence' field is NOT max(class probability) — measured to differ by up to 0.33, mean 0.040 on the 9730-row set (0.052 on val). The figure drew its ECE bars from that stored field while drawing its reliability curve from max(prob), so the legend contradicted its own curve.",
+      "control": "Recompute BOTH models from raw per-row predictions under one definition. Ours 0.08075, Jev 0.09321 — Jeff 1 is the better-calibrated model like-for-like.",
+      "adopted_rule": "One confidence definition per comparison. Jev's self-reported 0.0790 may be mentioned only with the note that it is not comparable to our 0.0807.",
+      "second_tell": "The same audit found stale figures on the demo page and /v1/models (accuracy 0.8174 -> 0.8183, ECE 0.0805 -> 0.0807), and a wrong split label (val described as split='test')."
+    }
+  ],
+  "closed_levers": [
+    {
+      "key": "global-supported-logit-bias",
+      "detail": "Mechanism: a multiplicative bias on the posterior shifts the decision boundary but cannot fix confidently-wrong rows. Swept b=-0.6..+0.6 on the saved scale preds: identity (b=0) is optimal at 0.8183; every non-zero bias is worse. A bias tuned on val gains +2 rows there and LOSES 9 on scale — the two splits disagree, so val-only tuning is overfitting a 199-row smoke test."
+    },
+    {
+      "key": "nei-probability-threshold-sweep",
+      "detail": "Mechanism: NEI mass exists but is not discriminative AT the margin. Sweep t=0.05..0.96 predicting NEI whenever P(NEI)>=t: best gain is 2 rows (0.8183->0.8185 at t=0.46). NEI ranking AUC is 0.8865, so the signal is real — but 740 of 2106 gold-NEI rows already have NEI as runner-up, and the rows a threshold would flip are currently correct, so the cut trades wins for losses."
+    },
+    {
+      "key": "schema-wording-test-time-augmentation",
+      "detail": "Mechanism: averaging 8 instruction wordings mixes incompatible first-token posteriors instead of reducing variance. Measured -3 rows and agreement-with-Jev collapsed 0.769 -> 0.374."
+    },
+    {
+      "key": "human-label-upweighting",
+      "detail": "Mechanism: teacher noise is not the binding constraint, so reweighting the human subset changes the LM loss without moving the decision boundary. 3x ground_truth vs 1x jev: val LM loss improved, task accuracy fell 1 row."
+    },
+    {
+      "key": "adapter-averaging",
+      "detail": "Mechanism: a 0.5/0.5 weight-space merge of two adapters trained on different task mixtures interpolates in weight space with no guarantee either skill survives. scripts/jeff_merge.py writes artifacts/jev_clf/lora_merged; it was never evaluated, so shipping it would be an un-gated accuracy claim. Closed on absence of a gate."
+    },
+    {
+      "key": "batching-in-the-benchmarked-eval-path",
+      "detail": "Mechanism: bf16 batched GEMM reduces in a different order, so results are not bit-reproducible. Measured 4.43x speedup (2159ms -> 488ms per question) but first-token deltas up to 4.2e-03, enough to flip borderline rows. Usable as an opt-in demo accelerator only; never in the scored path."
+    }
+  ],
+  "probes": {
+    "conjunction": {
+      "script": "scripts/probe_conjunction.py",
+      "result_file": "results/probe_conjunction.json",
+      "ours": "5/9",
+      "jev": "9/9",
+      "arms": {"conj-falsified": "3/3", "conj-both (control)": "2/2", "conj-absent": "0/2", "partial-scale": "0/2"},
+      "reading": "We are NOT generally over-claiming. We pass the falsified-conjunct arm and the both-halves-true control, and fail only where the claim runs past the evidence: a conjunct with no evidence (we say 'supported' 0.67-0.72; Jev says not_enough_info 0.99) or a claim that overstates a measured number (we say 'supported' 0.83-0.91; Jev says refuted 0.87-1.00)."
+    },
+    "granularity": {
+      "script": "scripts/probe_granularity_jev.py",
+      "ours": "0/5",
+      "jev": "5/5",
+      "confidence_swing": "0.506 to 0.946 across near-identical inputs",
+      "reading": "Text held constant, only passage chunking varied. The failure is a confidence INSTABILITY as much as an accuracy error: Jev answers at 0.99-1.00 exactly where we answer wrong at 0.5-0.95."
+    },
+    "jaggedness": {
+      "script": "scripts/probe_jaggedness.py",
+      "ours": "8/9",
+      "jev_reference": "9/9",
+      "miss": "jag-count-2, gold refuted, answered not_enough_info at 0.639"
+    }
+  },
+  "gap_analysis": {
+    "headline": "The entire scale gap is not_enough_info recall on single-passage rows.",
+    "by_gold_class_all_rows": {
+      "supported": {"ours_errors": 346, "jev_errors": 558, "delta": -212, "note": "we are BETTER"},
+      "refuted": {"ours_errors": 534, "jev_errors": 506, "delta": 28},
+      "not_enough_info": {"ours_errors": 888, "jev_errors": 607, "delta": 281}
+    },
+    "one_passage_stratum": {
+      "n": 8643,
+      "fraction_of_scale": 0.888,
+      "gold_supported_recall": {"ours": 0.9469, "jev": 0.9339, "delta_rows": 60},
+      "gold_refuted_recall": {"ours": 0.8007, "jev": 0.8080, "delta_rows": -18},
+      "gold_not_enough_info_recall": {"ours": 0.5229, "jev": 0.6554, "delta_rows": -208}
+    },
+    "five_passage_stratum": {"n": 859, "all_source": "climate_fever", "ours_accuracy": 0.6694, "jev_accuracy": 0.5914, "note": "we are better on multi-passage"},
+    "oracle_if_recall_matched_cell_by_cell": {"extra_rows": 311, "accuracy": 0.8503, "note": "would put us ~+214 rows AHEAD of Jev; fixing NEI alone wins rather than ties"}
+  },
+  "harness": {
+    "local_loop": "omp autoresearch on the jev_clf repo (delegating autoresearch.sh in the session repo)",
+    "train_script": "scripts/jev_clf_lora_train.py",
+    "eval_script": "scripts/jev_clf_lm_eval.py",
+    "readout": "jev_clf/readout.py — first_token iff all labels have distinct first tokens, else whole-sequence",
+    "off_limits": ["scripts/jev_clf_autoresearch.py", "scripts/jev_clf_lm_eval.py", "jev_clf/schema.py"],
+    "soft_target_distill": {
+      "status": "implemented and unit-tested this session",
+      "mechanism": "masked_lm_loss was hard-label token CE only, so the teacher's full distribution — present on all 12119 rows and hedging on 32.7% of NEI rows — was hardened to its argmax and discarded. Now CE + w*mean KL(teacher||student).",
+      "gate": "soft term switches off for label spaces whose first tokens are not distinct (the 1800 score rows share token 220), mirroring readout.py. Measured 10319/12119 rows carry a usable soft target — exactly 12119-1800.",
+      "backward_compat": "soft_target_weight defaults to 0.0, so configs without the key train exactly as before."
+    }
+  },
+  "do_not": [
+    "equate any Jev number here with a TypeSafe-published score — we re-measured Jev 1.13.0 on our own rows",
+    "quote Jev ECE 0.0790 as beating ours 0.0807 — retracted; like-for-like max(prob) is 0.0932 vs 0.0807 in our favour",
+    "quote the val split (0.7839 vs 0.7688) as a lead — 3 rows of 199, McNemar p=0.59; val is a smoke test and disagrees with scale on fix direction",
+    "treat val 0.7839 (lora_4b) and scale 0.8183 (lora_4b_multi) as the same adapter",
+    "cite README.md's 1.5B / 0.759 as Jeff 1 — stale generation, superseded by the release docs",
+    "present lora_merged, or the server's hardcoded ece_test_n199: 0.063, as measured Jeff 1 numbers",
+    "call the sealed holdout split='test' — it is split='val'",
+    "re-run the closed levers without new mechanism-level evidence",
+    "quote the batching speedup as free — it changes first-token values by up to 4e-03"
+  ],
+  "unsubstantiated_fields": [
+    {"field": "scale_ece_maxprob.jev = 0.09321", "why": "computed from data/factcheck/preds_jev_large.jsonl this session, not stored in any results JSON"},
+    {"field": "val_ece.jev max(prob) = 0.13025", "why": "computed this session from preds_jev_val.jsonl; the stored 0.11367 uses Jev's own confidence field"},
+    {"field": "runs[4].val_accuracy = 0.778894", "why": "derived from 155/199; no metrics JSON records it"},
+    {"field": "run 7 (soft distill) result", "why": "arm trained during this session; scored after this record's first draft — see PREREGISTRATION_soft_distill.md for the pre-committed prediction"}
+  ]
+}
