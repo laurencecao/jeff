@@ -30,12 +30,19 @@ Two independent splits:
 | split | n | gold file | our adapter | our preds | Jev preds |
 |---|---|---|---|---|---|
 | val (sealed) | 199 | `data/factcheck/ground_truth.jsonl` (`split='val'`) | `artifacts/jev_clf/lora_4b` | `preds_autoresearch_val.jsonl` | `preds_jev_val.jsonl` |
+| test (sealed) | 199 | `data/factcheck/ground_truth.jsonl` (`split='test'`) | `artifacts/jev_clf/lora_4b_multi` | `results/lm_eval_4b_multi_test.json` | — |
 | scale | 9,730 | `data/factcheck/eval_large.jsonl` | `artifacts/jev_clf/lora_4b_multi` | `preds_ours_large.jsonl` | `preds_jev_large.jsonl` |
 
-`ground_truth.jsonl` holds 1,589 `train` / 199 `val` / 199 `test`. The 199
-`split='test'` rows are a **separate** holdout that was never scored in this
-record — an earlier draft of the release notes called the val split `test`,
-which is wrong and is corrected here.
+The **test** row is a third, separate sealed holdout and is *not* the rows in the
+headline val table. The server's `GET /v1/models` reports it as
+`accuracy.test_n199 = 0.794` and `calibration.ece_test_n199 = 0.063`; both are
+backed by `results/lm_eval_4b_multi_test.json` (split `test`, n=199, accuracy
+0.79397, ECE 0.06344). Do not conflate these three 199-row splits — an earlier
+draft of this record wrongly called that server figure unmeasured.
+
+`ground_truth.jsonl` holds 1,589 `train` / 199 `val` / 199 `test`. An earlier
+draft of the release notes called the headline val split `test`, which is wrong
+and is corrected here; the `test` rows are their own holdout.
 
 ## 3. Box / harness
 

@@ -31,6 +31,12 @@
         "ours_preds": "data/factcheck/preds_ours_large.jsonl",
         "jev_preds": "data/factcheck/preds_jev_large.jsonl",
         "source_counts": {"vitaminc": 3979, "fever": 3910, "scifact": 982, "climate_fever": 859}
+      },
+      "test_n199": {
+        "n": 199,
+        "gold_file": "data/factcheck/ground_truth.jsonl",
+        "gold_split_field": "test",
+        "note": "A THIRD, separate sealed holdout — not the rows in the val table. The server's GET /v1/models reports it as accuracy.test_n199=0.794 and calibration.ece_test_n199=0.063; both are backed by results/lm_eval_4b_multi_test.json (model ...+lora_4b_multi, split='test', n=199, acc 0.7939698492462312, ece 0.06343564570848664). Do not conflate these three 199-row splits."
       }
     },
     "metrics": [
@@ -325,8 +331,8 @@
     "quote the val split (0.7839 vs 0.7688) as a lead — 3 rows of 199, McNemar p=0.59; val is a smoke test and disagrees with scale on fix direction",
     "treat val 0.7839 (lora_4b) and scale 0.8183 (lora_4b_multi) as the same adapter",
     "cite README.md's 1.5B / 0.759 as Jeff 1 — stale generation, superseded by the release docs",
-    "present lora_merged, or the server's hardcoded ece_test_n199: 0.063, as measured Jeff 1 numbers",
-    "call the sealed holdout split='test' — it is split='val'",
+    "present lora_merged as a measured Jeff 1 arm — it was never evaluated",
+    "call the sealed val holdout split='test' — it is split='val'",
     "re-run the closed levers without new mechanism-level evidence",
     "quote the batching speedup as free — it changes first-token values by up to 4e-03"
   ],
