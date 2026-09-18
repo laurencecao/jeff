@@ -67,7 +67,12 @@ def collect(preds: dict, rows: list[dict], use_stored_conf: bool):
 def report(tag: str, preds_path: Path, rows_path: Path) -> None:
     preds = load_preds(preds_path)
     rows = load_rows(rows_path)
-    print(f"\n=== {tag}  (n={len(rows)}) ===")
+    # Report the number of rows actually SCORED, not the size of the gold file:
+    # ground_truth.jsonl holds 1,987 rows but only 199 of them have val preds.
+    n_scored = sum(
+        1 for r in rows if (r["row_id"], next(iter(r["questions"]))) in preds
+    )
+    print(f"\n=== {tag}  (scored rows={n_scored} of {len(rows)} in the gold file) ===")
     for use_stored in (False, True):
         conf, corr = collect(preds, rows, use_stored)
         acc = corr.mean()

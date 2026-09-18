@@ -1,0 +1,20 @@
+
+=== SCALE: ours (lora_4b_multi)  (scored rows=9730 of 9730 in the gold file) ===
+  max(prob)          ECE=0.08075  acc=0.81829  conf range [0.3333, 0.9986]
+  stored confidence  ECE=0.08075  acc=0.81829  conf range [0.3333, 0.9986]
+                     vs max(prob): max diff=0.0000 mean=0.0000
+
+=== SCALE: live Jev  (scored rows=9730 of 9730 in the gold file) ===
+  max(prob)          ECE=0.09321  acc=0.82826  conf range [0.3500, 1.0000]
+  stored confidence  ECE=0.07896  acc=0.82826  conf range [0.0200, 1.0000]
+                     vs max(prob): max diff=0.3300 mean=0.0402
+
+=== VAL n=199: ours (lora_4b_multi)  (scored rows=199 of 1987 in the gold file) ===
+  max(prob)          ECE=0.09019  acc=0.78392  conf range [0.4223, 0.9995]
+  stored confidence  ECE=0.09019  acc=0.78392  conf range [0.4223, 0.9995]
+                     vs max(prob): max diff=0.0000 mean=0.0000
+
+=== VAL n=199: live Jev  (scored rows=199 of 1987 in the gold file) ===
+  max(prob)          ECE=0.13025  acc=0.76884  conf range [0.4600, 1.0000]
+  stored confidence  ECE=0.11367  acc=0.76884  conf range [0.1800, 1.0000]
+                     vs max(prob): max diff=0.2800 mean=0.0517
