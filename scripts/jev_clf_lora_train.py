@@ -60,6 +60,29 @@ def load_sft_rows(path: Path) -> list[dict]:
     return rows
 
 
+def label_first_token_ids(tok, labels: list[str], leading_space: bool) -> list[int] | None:
+    """First-token id per label, or None if the label space is not separable.
+
+    Mirrors jev_clf/readout.py: first-token readout is only meaningful when
+    every label has a DISTINCT first token. Score labels (" 0".." 3") all
+    tokenize to [220, 15/16/17/18], sharing token 220, so a first-token
+    soft target over them would be degenerate. Returning None there keeps the
+    soft term off rather than silently training on a collapsed distribution.
+
+    `leading_space` must match the completion convention: the assistant turn
+    is " " + label, and the readout scores that same first token.
+    """
+    ids = []
+    for lab in labels:
+        toks = tok((" " if leading_space else "") + lab, add_special_tokens=False)["input_ids"]
+        if not toks:
+            return None
+        ids.append(toks[0])
+    if len(set(ids)) != len(ids):
+        return None
+    return ids
+
+
 def build_example(tok, row: dict, cfg: dict) -> dict:
     """Tokenize one SFT row into input_ids/labels with prompt masked to -100."""
     msgs = row["messages"]
@@ -101,8 +124,32 @@ def build_example(tok, row: dict, cfg: dict) -> dict:
 
     input_ids = prompt_ids + comp_ids
     labels = [-100] * len(prompt_ids) + comp_ids
+
+    # --- soft targets -----------------------------------------------------
+    # The distill rows carry the teacher's FULL distribution, e.g.
+    # {"refuted": 0.93, "not_enough_info": 0.07, "supported": 0.0}. Training on
+    # the argmax alone discards exactly the hedging that separates a confident
+    # refutation from "topically relevant but not established". Soft targets
+    # keep that signal; the class index is the first supervised position.
+    # -1 marks "no usable soft target" so the soft term is simply skipped.
+    soft: list[float] = []
+    soft_ids: list[int] = []
+    soft_pos = -1
+    probs = row.get("target_probs") or {}
+    label_space = row.get("label_space") or []
+    if probs and label_space:
+        ft = label_first_token_ids(tok, list(label_space), bool(cfg["data"]["completion_leading_space"]))
+        if ft is not None:
+            vals = [float(probs.get(lab, 0.0)) for lab in label_space]
+            total = sum(vals)
+            if total > 0:
+                soft = [v / total for v in vals]
+                soft_ids = ft
+                soft_pos = len(prompt_ids)
+
     return {"input_ids": input_ids, "labels": labels, "weight": float(row.get("weight", 1.0)),
-            "label_source": row.get("label_source", "")}
+            "label_source": row.get("label_source", ""),
+            "soft": soft, "soft_ids": soft_ids, "soft_pos": soft_pos}
 
 
 def collate(batch: list[dict], pad_id: int) -> dict:
@@ -113,16 +160,61 @@ def collate(batch: list[dict], pad_id: int) -> dict:
         input_ids.append(b["input_ids"] + [pad_id] * pad)
         labels.append(b["labels"] + [-100] * pad)
         attn.append([1] * len(b["input_ids"]) + [0] * pad)
-    return {
+
+    # Soft targets: one padded row per example, position 0 when absent so the
+    # gather is always in range (the mask keeps those rows out of the loss).
+    n_lab = max((len(b["soft"]) for b in batch), default=0)
+    soft, soft_ids, soft_pos, soft_mask = [], [], [], []
+    for b in batch:
+        s = b["soft"]
+        if s and n_lab:
+            soft.append(s + [0.0] * (n_lab - len(s)))
+            soft_ids.append(list(b["soft_ids"]) + [0] * (n_lab - len(b["soft_ids"])))
+            soft_pos.append(b["soft_pos"])
+            soft_mask.append(1.0)
+        else:
+            soft.append([0.0] * n_lab)
+            soft_ids.append([0] * n_lab)
+            soft_pos.append(0)
+            soft_mask.append(0.0)
+
+    out = {
         "input_ids": torch.tensor(input_ids),
         "labels": torch.tensor(labels),
         "attention_mask": torch.tensor(attn),
         "weights": torch.tensor([b["weight"] for b in batch], dtype=torch.float32),
+        "soft_mask": torch.tensor(soft_mask, dtype=torch.float32),
+        "soft_pos": torch.tensor(soft_pos, dtype=torch.long),
     }
+    if n_lab:
+        out["soft"] = torch.tensor(soft, dtype=torch.float32)
+        out["soft_ids"] = torch.tensor(soft_ids, dtype=torch.long)
+    return out
 
 
-def masked_lm_loss(logits: torch.Tensor, labels: torch.Tensor, weights: torch.Tensor) -> torch.Tensor:
-    """Token-mean CE over supervised positions, optionally weighted per row."""
+def masked_lm_loss(
+    logits: torch.Tensor,
+    labels: torch.Tensor,
+    weights: torch.Tensor,
+    soft: torch.Tensor | None = None,
+    soft_ids: torch.Tensor | None = None,
+    soft_pos: torch.Tensor | None = None,
+    soft_mask: torch.Tensor | None = None,
+    soft_weight: float = 0.0,
+) -> torch.Tensor:
+    """Token-mean CE over supervised positions, plus optional soft-target KL.
+
+    The CE term supervises the assistant turn exactly as before, so an
+    unmodified config trains bit-identically to the previous script.
+
+    When `soft` carries the teacher's distribution over the label space and
+    `soft_weight` > 0, a KL(teacher || student) term is added at the first
+    supervised position, reading the student's mass off the FIRST TOKEN of each
+    label. The teacher distribution is the soft-target signal produced by
+    distillation; without this term it is discarded and only the argmax is
+    learned -- which is precisely the "confident but wrong at the boundary"
+    failure this arm is meant to fix.
+    """
     shift_logits = logits[:, :-1].float()
     shift_labels = labels[:, 1:]
     mask = shift_labels != -100
@@ -133,7 +225,37 @@ def masked_lm_loss(logits: torch.Tensor, labels: torch.Tensor, weights: torch.Te
     ).reshape(shift_labels.shape)
     per_row = (tok_loss * mask).sum(1) / mask.sum(1).clamp(min=1)
     w = weights / weights.sum().clamp(min=1e-8)
-    return (per_row * w).sum()
+    loss = (per_row * w).sum()
+
+    if (
+        soft is not None
+        and soft_ids is not None
+        and soft_pos is not None
+        and soft_mask is not None
+        and soft_weight > 0
+        and soft_mask.sum() > 0
+    ):
+        # Position p is predicted by logits index p-1.
+        rows = soft_mask > 0
+        idx = rows.nonzero(as_tuple=True)[0]
+        # Teacher ids are per-row; pad class slots (id 0) are never read because
+        # every real row's distribution is dense over its own label space.
+        pos = (soft_pos[idx] - 1).clamp(min=0)
+        sel_logits = logits[idx].float().gather(
+            1, pos.view(-1, 1, 1).expand(-1, 1, logits.size(-1))
+        ).squeeze(1)
+        lab_logits = sel_logits.gather(1, soft_ids[idx].clamp(min=0))
+        logp = torch.log_softmax(lab_logits, dim=-1)
+        teacher = soft[idx]
+        # KL(teacher || student). Exact teacher zeros contribute nothing, but
+        # 0 * log(0) must not become NaN, hence the clamp before the log.
+        kl = (teacher * (torch.log(teacher.clamp_min(1e-12)) - logp)).sum(1)
+        # Weighted MEAN over the rows that have a soft target (not a sum over a
+        # fraction of the batch), so soft_target_weight is directly comparable
+        # to the CE term: 1.0 means the KL counts as much as the CE does.
+        rw = weights[idx]
+        loss = loss + soft_weight * (kl * rw).sum() / rw.sum().clamp(min=1e-8)
+    return loss
 
 
 def evaluate_loss(model, examples: list[dict], pad_id: int, batch_size: int, device: str) -> float:
@@ -169,6 +291,9 @@ def main() -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
 
     opt = cfg["optim"]
+    # 0.0 keeps the loss exactly the hard-label CE it has always been, so any
+    # config without this key reproduces the previous training bit-for-bit.
+    soft_weight = float(opt.get("soft_target_weight", 0.0))
     seed = opt["seed"]
     random.seed(seed)
     np.random.seed(seed)
@@ -207,6 +332,9 @@ def main() -> None:
         ex["weight"] *= float(src_w.get(ex["label_source"], 1.0))
         train_ex.append(ex)
     val_ex = [build_example(tok, r, cfg) for r in val_rows]
+    n_soft = sum(1 for e in train_ex if e["soft"])
+    print(f"[data] soft targets usable on {n_soft}/{len(train_ex)} train rows "
+          f"(soft_target_weight={soft_weight})")
     lens = np.array([len(e["input_ids"]) for e in train_ex])
     print(f"[data] seq len mean={lens.mean():.0f} p95={np.percentile(lens, 95):.0f} "
           f"max={lens.max()} truncated={(lens >= cfg['max_length']).sum()}")
@@ -270,9 +398,20 @@ def main() -> None:
             b = collate([train_ex[i] for i in idx], pad_id)
             labels = b.pop("labels").to(device)
             weights = b.pop("weights").to(device)
+            soft = b.pop("soft", None)
+            soft_ids = b.pop("soft_ids", None)
+            soft_pos = b.pop("soft_pos", None)
+            soft_mask = b.pop("soft_mask", None)
             logits = model(input_ids=b["input_ids"].to(device),
                            attention_mask=b["attention_mask"].to(device)).logits
-            loss = masked_lm_loss(logits, labels, weights) / opt["grad_accum"]
+            loss = masked_lm_loss(
+                logits, labels, weights,
+                soft=None if soft is None else soft.to(device),
+                soft_ids=None if soft_ids is None else soft_ids.to(device),
+                soft_pos=None if soft_pos is None else soft_pos.to(device),
+                soft_mask=None if soft_mask is None else soft_mask.to(device),
+                soft_weight=soft_weight,
+            ) / opt["grad_accum"]
             loss.backward()
             accum_loss += float(loss) * opt["grad_accum"]
             accum_n += 1

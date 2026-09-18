@@ -1,0 +1,105 @@
+{
+  "ours": {
+    "conj-falsified-1": {
+      "gold": "refuted",
+      "got": "refuted",
+      "confidence": 0.515429675579071
+    },
+    "conj-falsified-2": {
+      "gold": "refuted",
+      "got": "refuted",
+      "confidence": 0.5178173184394836
+    },
+    "conj-falsified-3": {
+      "gold": "refuted",
+      "got": "refuted",
+      "confidence": 0.9946156144142151
+    },
+    "conj-absent-1": {
+      "gold": "not_enough_info",
+      "got": "supported",
+      "confidence": 0.7170881628990173
+    },
+    "conj-absent-2": {
+      "gold": "not_enough_info",
+      "got": "supported",
+      "confidence": 0.6671044230461121
+    },
+    "conj-both-1": {
+      "gold": "supported",
+      "got": "supported",
+      "confidence": 0.9911535382270813
+    },
+    "conj-both-2": {
+      "gold": "supported",
+      "got": "supported",
+      "confidence": 0.9714339375495911
+    },
+    "partial-scale-1": {
+      "gold": "refuted",
+      "got": "supported",
+      "confidence": 0.9087991714477539
+    },
+    "partial-scale-2": {
+      "gold": "refuted",
+      "got": "supported",
+      "confidence": 0.8247780203819275
+    }
+  },
+  "jev": {
+    "conj-falsified-1": {
+      "got": "refuted",
+      "confidence": 1.0
+    },
+    "conj-falsified-2": {
+      "got": "refuted",
+      "confidence": 0.77
+    },
+    "conj-falsified-3": {
+      "got": "refuted",
+      "confidence": 1.0
+    },
+    "conj-absent-1": {
+      "got": "not_enough_info",
+      "confidence": 0.99
+    },
+    "conj-absent-2": {
+      "got": "not_enough_info",
+      "confidence": 0.99
+    },
+    "conj-both-1": {
+      "got": "supported",
+      "confidence": 0.98
+    },
+    "conj-both-2": {
+      "got": "supported",
+      "confidence": 0.99
+    },
+    "partial-scale-1": {
+      "got": "refuted",
+      "confidence": 0.87
+    },
+    "partial-scale-2": {
+      "got": "refuted",
+      "confidence": 1.0
+    }
+  },
+  "ours_by_arm": {
+    "conj-falsified": [
+      3,
+      3
+    ],
+    "conj-absent": [
+      0,
+      2
+    ],
+    "conj-both": [
+      2,
+      2
+    ],
+    "partial-scale": [
+      0,
+      2
+    ]
+  }
+}
