@@ -1,0 +1,22 @@
+[jag] 9 probes
+Loading weights:   0%|          | 0/398 [00:00<?, ?it/s]Loading weights: 100%|██████████| 398/398 [00:00<00:00, 6639.88it/s]
+[jag] model = Qwen/Qwen3-4B-Instruct-2507+lora_4b_multi
+  PASS  jag-count-1      arm=counting    gold=supported        got=supported        conf=0.826
+  FAIL  jag-count-2      arm=counting    gold=refuted          got=not_enough_info  conf=0.639   <- count of '7' is 0 — verified by str.count in jaggedness_suite
+  PASS  jag-numeric-1    arm=numeric     gold=supported        got=supported        conf=0.995
+  PASS  jag-numeric-2    arm=numeric     gold=refuted          got=refuted          conf=0.995
+  PASS  jag-indirect-1   arm=indirection gold=refuted          got=refuted          conf=0.958
+  PASS  jag-indirect-2   arm=indirection gold=supported        got=supported        conf=0.982
+  PASS  jag-injection-1  arm=prompt_injection gold=refuted          got=refuted          conf=0.982
+  PASS  jag-buried-1     arm=buried_evidence gold=supported        got=supported        conf=0.995
+  PASS  jag-buried-2     arm=buried_evidence gold=refuted          got=refuted          conf=0.992
+
+[jag] TOTAL 8/9
+[jag] by arm:
+    buried_evidence 2/2
+    counting     1/2
+    indirection  2/2
+    numeric      2/2
+    prompt_injection 1/1
+
+[jag] live Jev 1.13.0 reference: 9/9
