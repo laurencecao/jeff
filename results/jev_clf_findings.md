@@ -18,11 +18,10 @@ declared answer space?
 | **ours: 4B + LoRA** | val | 199 | **0.784** | 0.762 | **0.090** |
 | ours: Qwen2.5-1.5B + LoRA | test | 199 | 0.759 | 0.738 | 0.111 |
 
-**The honest reading:** on **val** we beat Jev by 3 rows (0.784 vs 0.769); on
-**test** we are 5 rows behind (0.774 vs 0.799). Both are 199-row samples with a
-95% interval of roughly ±0.056, so those point estimates straddle Jev in
-opposite directions. **We are statistically indistinguishable from live Jev on
-both splits**, at substantially better calibration (ECE 0.077 / 0.090 vs 0.114).
+**The honest reading:** on **val** we lead by 3 rows (0.784 vs 0.769); on
+**test** we trail by 5 (0.774 vs 0.799). Both are 199-row samples with a
+95% interval of roughly ±0.056 — under-powered, so at that size the ordering was
+not resolvable. The adequately-powered comparison below resolves it.
 
 ## Head-to-head at adequate sample size (9,730 unseen rows, human labels)
 
@@ -35,11 +34,13 @@ model saw in training (verified: zero claim overlap with any split).
 | live Jev 1.13.0 | **0.8283** | 0.7994 | 0.0790 | 0.2750 |
 | **ours (4B + LoRA)** | 0.8143 | 0.7769 | **0.0709** | 0.2822 |
 
-**Jev is 1.4 points ahead — a real gap at this sample size, not noise.** Our
-calibration remains better. This supersedes the n=199 "statistically
-indistinguishable" claim above, which was under-powered; and the earlier note
-that our 0.8143 beat "Jev's 0.799" was an artifact of comparing different sample
-sizes.
+**Jev is 1.4 points ahead — a real gap at this sample size, not noise.** It is
+significant under the unpaired binomial (z = 2.55, p ≈ 0.011) and stays
+significant under the paired McNemar test at its least favourable error overlap
+(b−c = 136, b+c ≤ 3478, z ≥ 2.31, p ≈ 0.02). Our calibration remains better.
+This supersedes the n=199 "statistically indistinguishable" claim above, which
+was under-powered; and the earlier note that our 0.8143 beat "Jev's 0.799" was
+an artifact of comparing different sample sizes.
 
 **Where the gap is:** our weakest class is `not_enough_info` (F1 0.666 vs
 `supported` 0.889 / `refuted` 0.776), and Jev's advantage concentrates exactly
@@ -48,8 +49,11 @@ there — detecting the *absence* of supporting evidence.
 **Multi-primitive gap.** Choice is trained and good; **Noul and Score are
 untrained** (all six training schemas are Choice; Score measures a uniform
 0.25/level with no signal where Jev returns a real graded answer). Teacher-
-labelled Noul/Score rows exist (`sft_multi.jsonl`, 3000 rows) and the 4B retrain
-on the merged set is complete but not yet evaluated.
+labelled Noul/Score rows exist (`sft_multi.jsonl`, 3000 rows, on local disk — no
+new API spend to reuse) and the 4B retrain on the merged 12,119-row set **was
+run and lost**: it completed on the Colab VM (`TRAIN_RC=0`, epoch-1 val_loss
+0.2627) but the session was dropped before the adapter could be retrieved. It
+must be re-run; only GPU hours were lost.
 
 **Parallelism gap, measured.** Our latency scales linearly with questions per
 call (6.39× at k=8) while Jev's is flat (0.78×): 2085 ms vs 150 ms at eight
