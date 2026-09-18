@@ -69,10 +69,10 @@ PAGE = """<!DOCTYPE html>
 <h2>Measured on 9,730 unseen claims (human labels)</h2>
 <table>
  <tr><th>model</th><th class="num">accuracy</th><th class="num">ECE</th></tr>
- <tr><td>TypeSafe Jev 1.13.0 (hosted)</td><td class="num">0.8283</td><td class="num">0.0790</td></tr>
- <tr><td><strong>Jeff</strong> (this, local 4B)</td><td class="num">0.8174</td><td class="num">0.0805</td></tr>
+ <tr><td>TypeSafe Jev 1.13.0 (hosted)</td><td class="num">0.8283</td><td class="num">0.0932</td></tr>
+ <tr><td><strong>Jeff</strong> (this, local 4B)</td><td class="num">0.8183</td><td class="num">0.0807</td></tr>
 </table>
-<p class="muted">Calibration: stated confidence vs actual correctness, measured on human labels. Low-confidence behaviour is where the two differ most.</p>
+<p class="muted">Calibration: stated confidence vs actual correctness on human labels, with confidence defined the same way for both models (max class probability). Jev also reports its own confidence statistic, which is not max probability; scored on that it gets 0.0790, but that number is not comparable to ours, so the table uses the like-for-like 0.0932. Low-confidence behaviour is where the two differ most.</p>
 <p class="muted">The accuracy table is the sealed choice-verdict benchmark; the Score and Noul cards above are a small-scale demonstration on the same adapter, not part of that metric.</p>
 <img src="/static/calibration_plot.png" alt="reliability diagram">
 

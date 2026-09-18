@@ -112,9 +112,9 @@ def models() -> dict:
     return {
         "models": [
             {"name": MODEL_ID, "type": "choice|noul|score",
-             "context": 32768, "calibration": {"ece_test_n199": 0.063, "ece_n9730": 0.0805},
-             "accuracy": {"test_n199": 0.794, "n9730": 0.8174},
-             "note": "measured on human labels; Jev 1.13.0 = 0.799 / 0.8283 on the same rows"}
+             "context": 32768, "calibration": {"ece_test_n199": 0.063, "ece_n9730": 0.0807},
+             "accuracy": {"test_n199": 0.794, "n9730": 0.8183},
+             "note": "measured on human labels; Jev 1.13.0 = 0.799 / 0.8283 accuracy, ECE 0.0932 on the same rows under the same max-probability confidence definition"}
         ]
     }
 
