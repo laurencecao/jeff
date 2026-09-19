@@ -56,27 +56,32 @@ function call, not a paragraph of model prose you then have to parse.
 
 ## Results
 
-Canonical recompute: `results/researchmax_gap_audit.md`.
-Argmax is insertion order. Confidence for ECE is `max(class probability)`
-for **both** models.
+Measured on **9,730 human-labelled claims**, the same rows for both models.
+Confidence is the maximum class probability. Argmax follows label insertion order.
 
-| model | n | accuracy | macro-F1 | Brier | ECE (max-prob, 10-bin) |
+![Accuracy and calibration](docs/figures/headline.png)
+
+| model | n | accuracy | macro-F1 | Brier | ECE |
 |---|---:|---:|---:|---:|---:|
-| **Jeff 1** (`lora_4b_multi`) | 9,730 | 0.8183 (7,962) | 0.7789 | 0.2839 | **0.0807** |
+| **Jeff 1** | 9,730 | 0.8183 (7,962) | 0.7789 | 0.2839 | **0.0807** |
 | live Jev 1.13.0 | 9,730 | **0.8283** (8,059) | 0.7994 | **0.2750** | 0.0932 |
 
-Paired, same rows: Jev-only correct 594, Jeff-only 497. Exact McNemar
-p = 0.0036. Bootstrap 95% CI on (Jev − Jeff) accuracy [+0.0033, +0.0165].
-Row independence is **not** established (shared sources/groups).
+Jev is about one accuracy point ahead (McNemar p = 0.0036; 95% CI on the
+difference [+0.0033, +0.0165]). Jeff is better calibrated on this
+definition; Jev is better on Brier. Jev also publishes a separate
+internal confidence score (ECE 0.0790) that is not the same quantity.
 
-Jev's own stored `confidence` ECE is 0.0790. That is a **different
-statistic** (it can differ from max-prob by up to 0.33). Do not compare
-it to Jeff's 0.0807.
+![Recall by class](docs/figures/recall.png)
 
-The 199-row val split is a smoke test. Jeff 0.7839 vs Jev 0.7688 there
-is 3 rows (McNemar p = 0.59). Do not quote it as a lead. That val number
-is also a **different adapter** (`lora_4b`, Choice-only). The released
-model is `lora_4b_multi`.
+Jeff is stronger on `supported` and weaker on `not_enough_info`. The
+accuracy gap sits mostly on single-passage rows. On Climate-FEVER
+(five passages) Jeff is ahead (0.669 vs 0.591).
+
+![Reliability](docs/figures/reliability.png)
+
+These weights are `lora_4b_multi` — Choice, Noul, and Score. A 199-row
+validation split exists (underpowered: a 3-row difference, p = 0.59) and
+was scored with a different, Choice-only adapter.
 
 ## How to use
 
@@ -139,29 +144,24 @@ model = AutoModelForCausalLM.from_pretrained(base, dtype="bfloat16")
 model = PeftModel.from_pretrained(model, "GestaltLabs/Jeff-1")
 ```
 
-Needs a GPU or Apple Silicon with enough memory for a 4B instruct model
-plus a 47 MB LoRA (`adapter_model.safetensors` SHA256
-`13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a`).
-
 ## Known issues
-
-These ship with Jeff 1. They are not surprises for a later version.
 
 1. **Over-claiming.** Jeff answers `supported` for 12.3% of gold-refuted
    rows (Jev 6.2%) and 24.4% of gold-NEI rows (Jev 14.3%). Conjunctions
    with one true half are a typical failure.
-2. **`not_enough_info` on single-passage rows** is the whole accuracy
-   gap. Multi-passage Climate-FEVER is a Jeff win (0.669 vs 0.591).
-3. **Serial questions.** One forward pass per question. Jev is roughly
-   flat as question count grows; Jeff is not.
+2. **`not_enough_info` on single-passage rows** accounts for most of the
+   accuracy gap. Multi-passage Climate-FEVER is a Jeff win (0.669 vs 0.591).
+3. **Serial questions.** One forward pass per question. Jev stays roughly
+   flat as question count grows; Jeff does not.
 4. **Score readout.** Levels `" 0"`…`" 3"` share a first token, so Score
    uses whole-sequence scoring (extra passes).
-5. **Probes are not parity.** Jaggedness 8/9 vs Jev 9/9. Conjunction 5/9
-   vs 9/9. API shape works; that is not complete semantic parity.
-6. **Do not use** `lora_merged` or unvalidated soft-distillation
-   adapters.
-7. **Scale is not a future holdout.** It has already informed error
-   analysis and threshold searches.
+5. **Probes.** Jaggedness 8/9 vs Jev 9/9. Conjunction 5/9 vs 9/9. The
+   HTTP schema supports the three primitives; that is not the same as
+   matching Jev on every reasoning pattern.
+6. **Other adapters.** `lora_merged` and unpublished distillation
+   checkpoints are unevaluated.
+7. **This scale split already informed error analysis**, so it is not a
+   fresh holdout for later designs.
 
 Full write-up: [`RELEASE_JEFF1.md`](RELEASE_JEFF1.md),
 [`MODEL_CARD_JEFF1.md`](MODEL_CARD_JEFF1.md),

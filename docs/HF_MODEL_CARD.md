@@ -52,9 +52,9 @@ as Score levels `" 0"`…`" 3"` do).
 `confidence` is `max(probabilities)`, a convenience statistic derived
 from the distribution, not a separately trained head.
 
-This card describes **only** the `lora_4b_multi` adapter. A Choice-only
-sibling (`lora_4b`) exists in the code repo and is **not** these
-weights. A merged checkpoint in that tree is unvalidated; do not use it.
+These weights are the `lora_4b_multi` adapter (Choice, Noul, and Score).
+A Choice-only sibling lives in the code repo. A merged checkpoint there
+is unevaluated.
 
 ## Why
 
@@ -65,55 +65,39 @@ compose**, with weights you can run offline.
 Hosted Jev already does this well. It is closed: you cannot inspect the
 weights, you cannot run without an API, and you cannot point an agent at
 a repository instead of a vendor. Jeff exists so that those three things
-are possible, even if the first public checkpoint is ~1 accuracy point
-behind Jev on our 9,730-row human-label split.
-
-We are releasing **this** adapter rather than waiting for a better one
-because the measurements are stable enough to be useful, the failure
-modes are named, and an unpublished local model cannot be audited by
-anyone else. A later architecture (d-Jeff) is a separate project; it
-does not replace this release.
+are possible, even if the first public checkpoint is about one accuracy
+point behind Jev on our 9,730-row human-label split.
 
 ## Why it matters
 
 - **You can run it.** Clone the code, load this adapter, get
   distributions. Nothing leaves the machine at inference time.
 - **You can measure it.** We scored Jeff and live Jev 1.13.0 on the
-  **same 9,730 human-labelled fact-check rows**. The numbers below are
-  from raw per-row files, not marketing rounding.
-- **You can see where it fails.** Jeff over-claims `supported` and
-  loses on `not_enough_info` when a single topically related passage
-  does not actually establish the claim. That is the product, not a
-  footnote.
+  **same 9,730 human-labelled fact-check rows**.
+- **You can see where it fails.** Jeff over-claims `supported` and is
+  weak on `not_enough_info` when a passage is on-topic but does not
+  establish the claim.
 - **Agents have a repo.** [AGENTS.md](https://github.com/Gestalt-Lab/jeff/blob/main/AGENTS.md)
-  is the entrypoint for coding agents: what to run, what not to claim.
+  is the entrypoint for coding agents.
 
 ## Results
 
-Canonical audit: [`results/researchmax_gap_audit.md`](https://github.com/Gestalt-Lab/jeff/blob/main/results/researchmax_gap_audit.md)
-in the code repo. Argmax = insertion order (sorting labels changes
-ties). ECE uses **max class probability** for both models.
+Measured on **9,730 human-labelled claims**, the same rows for both models.
+Confidence is the maximum class probability.
 
-**Scale split — 9,730 human labels** (`eval_large.jsonl`; sources:
-VitaminC 3,979, FEVER 3,910, SciFact 982, Climate-FEVER 859):
+![Accuracy and calibration](https://github.com/Gestalt-Lab/jeff/raw/main/docs/figures/headline.png)
 
-| model | accuracy | macro-F1 | Brier ↓ | ECE ↓ (max-prob, 10-bin) |
+| model | accuracy | macro-F1 | Brier | ECE |
 |---|---:|---:|---:|---:|
 | **Jeff 1 (this adapter)** | 0.8183 (7,962/9,730) | 0.7789 | 0.2839 | **0.0807** |
 | live Jev 1.13.0 | **0.8283** (8,059/9,730) | 0.7994 | **0.2750** | 0.0932 |
 
-- Discordant pairs: Jev-only correct 594, Jeff-only 497.
-- Exact McNemar p = 0.0036.
-- Paired bootstrap 95% CI on (Jev − Jeff) accuracy: [+0.0033, +0.0165]
-  (6,000 resamples, seed 11). Group independence is **not** assumed.
+Jev is about one accuracy point ahead (McNemar p = 0.0036; 95% CI on
+the difference [+0.0033, +0.0165]). Jeff is better calibrated on this
+definition; Jev is better on Brier. Jev also publishes a separate
+internal confidence score (ECE 0.0790) that is not the same quantity.
 
-**Honest summary:** Jev is about **1.0 accuracy point** ahead on this
-split. Jeff is **better calibrated** under a shared max-probability
-definition, and **worse on Brier**. Jev’s stored-confidence ECE of
-0.0790 is a different statistic (mean divergence from max-prob ≈ 0.04,
-max 0.33) and must not be compared to 0.0807.
-
-**Recall by gold class (scale):**
+![Recall by class](https://github.com/Gestalt-Lab/jeff/raw/main/docs/figures/recall.png)
 
 | gold | n | Jeff recall | Jev recall |
 |---|---:|---:|---:|
@@ -121,26 +105,25 @@ max 0.33) and must not be compared to 0.0807.
 | refuted | 2,593 | 0.794 | **0.805** |
 | not_enough_info | 2,106 | 0.578 | **0.712** |
 
-The accuracy gap is concentrated in NEI on **single-passage** rows
-(8,643 of 9,730). On 859 five-passage Climate-FEVER rows Jeff is *more*
-accurate (0.669 vs 0.591). Over-claim rates still favor Jev on both
-error directions: refuted→supported 12.3% vs 6.2%; NEI→supported 24.4%
-vs 14.3%.
+The accuracy gap sits mostly on single-passage `not_enough_info` rows.
+On Climate-FEVER (five passages) Jeff is ahead (0.669 vs 0.591).
+Over-claim: refuted→supported 12.3% vs 6.2%; NEI→supported 24.4% vs 14.3%.
 
-**Do not quote n=199 as a lead.** A sealed val split exists (Jeff
-`lora_4b` 0.7839 vs Jev 0.7688). That is 3 rows, McNemar p=0.59, and a
-**different adapter**. This card’s model is `lora_4b_multi`.
+![Reliability](https://github.com/Gestalt-Lab/jeff/raw/main/docs/figures/reliability.png)
 
-Training identity (from `train_metrics.json`): 12,119 SFT rows (Choice +
-1,800 Score + 1,200 Noul), 2 epochs, effective batch 32, lr 1e-4, seed
-42, Colab A100 40GB, ~51 min. Base revision was not pinned in that run.
+A 199-row validation split exists (underpowered: a 3-row difference,
+p = 0.59) and was scored with a different, Choice-only adapter.
+
+Training snapshot (`train_metrics.json`): 12,119 SFT rows, 2 epochs,
+effective batch 32, lr 1e-4, seed 42, Colab A100 40GB, ~51 min. The base
+model revision was not pinned in that run.
 
 ## How to use
 
 Needs the 4B base model in memory (GPU or Apple Silicon). This repo is
 the LoRA only (~47 MB).
 
-### With the Jeff client (recommended)
+### With the Jeff client
 
 ```bash
 git clone https://github.com/Gestalt-Lab/jeff
@@ -180,13 +163,10 @@ result = client.system_one(
 
 print(result.choices["verdict"].choice)
 print(result.choices["verdict"].probabilities)
-print(result.nouls["has_number"].noul)
-print(result.scores["strength"].score)
 ```
 
-The worked example above is a **known failure**: gold is `refuted`
-(accuracy is tied, so “more accurate” is false). Jeff often answers
-`supported`. See Known issues.
+The example above is a **known failure**: gold is `refuted` (accuracy is
+tied, so “more accurate” is false). Jeff often answers `supported`.
 
 ### HTTP
 
@@ -194,9 +174,6 @@ The worked example above is a **known failure**: gold is `refuted`
 uv run python -m scripts.jev_clf_server
 # POST http://127.0.0.1:8079/v1/systemone
 ```
-
-Body shape matches TypeSafe `systemone`: `state` + `questions` with
-`type: choice | noul | score`.
 
 ### Raw PEFT
 
@@ -210,37 +187,27 @@ model = AutoModelForCausalLM.from_pretrained(base, dtype="bfloat16")
 model = PeftModel.from_pretrained(model, "GestaltLabs/Jeff-1").eval()
 ```
 
-Load the tokenizer from the **base model**, not from this adapter.
-Readout lives in the code repo (`jev_clf/readout.py`); do not assume
-greedy generation of a label string.
+Load the tokenizer from the **base model**. Readout lives in the code
+repo (`jev_clf/readout.py`).
 
-`adapter_model.safetensors` SHA256:
+`adapter_model.safetensors` SHA256
 `13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a`
 (47,224,624 bytes).
 
 ## Known issues
 
-Released on purpose, not hidden.
-
-1. **Over-claiming is the dominant error.** Jeff calls `supported` too
-   often when one conjunct is true and another is false or absent, and
-   when a passage is on-topic but does not entail the claim.
-2. **Weak NEI on one passage.** Restoring Jev’s NEI recall on
-   single-passage rows would close the accuracy gap (oracle bookkeeping,
-   not an achieved model).
-3. **Serial compute.** One forward pass per question. Hosted Jev stays
-   roughly flat as you add questions over the same state; Jeff does not.
-4. **Score is slower.** Shared first-token collision → sequence readout.
-5. **Tiny probes ≠ capability parity.** Jaggedness 8/9 vs Jev 9/9;
-   conjunction 5/9 vs 9/9. The HTTP schema accepts the three primitives;
-   that does not mean Jeff matches Jev on every reasoning pattern.
-6. **This scale split is burnt for design.** It has been used for error
-   analysis and threshold searches. Treat new work as needing a fresh
-   holdout.
-7. **No extra confidence head, no post-hoc temperature in the served
-   client.** Reported confidence is max probability.
-8. **Do not ship** `lora_merged` or unpublished soft-distillation
-   adapters as Jeff 1.
+1. **Over-claiming.** Jeff calls `supported` too often when one conjunct
+   is true and another is false or absent, and when a passage is on-topic
+   but does not entail the claim.
+2. **Weak NEI on one passage.** That is where most of the accuracy gap sits.
+3. **Serial compute.** One forward pass per question.
+4. **Score is slower** when labels share a first token.
+5. **Probes.** Jaggedness 8/9 vs Jev 9/9; conjunction 5/9 vs 9/9.
+6. **This scale split already informed error analysis**, so it is not a
+   fresh holdout for later designs.
+7. **No separate confidence head.** Reported confidence is max probability.
+8. **Unevaluated adapters** (`lora_merged`, unpublished distillation
+   checkpoints) are not Jeff 1.
 
 ## Files
 
