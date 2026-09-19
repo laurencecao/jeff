@@ -9,7 +9,13 @@ GRANULARITY. If real, it explains the 1-passage not_enough_info deficit directly
 a single passage gives the model one slot to attend to, so "evidence exists"
 collapses to "supported".
 
-This holds the text constant and varies only how it is chunked.
+CAVEAT: an earlier version of this file claimed it "holds the text constant and
+varies only how it is chunked". That is NOT what the variants actually do.
+Variant A wraps the same facts in a longer sentence ("Researchers compared 100
+participants who completed a new training program...") while variants B-E use the
+bare SPEED/ACC constants, so BOTH wording and structure differ between A and the
+rest. Do not report this as a chunking-controlled result; it shows brittleness
+across near-identical inputs, nothing narrower.
 """
 
 from __future__ import annotations

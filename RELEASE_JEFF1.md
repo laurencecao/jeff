@@ -89,12 +89,29 @@ z=2.94, **p=0.0033**. Jeff 1 is better calibrated (0.0807 vs 0.0932). So the
 honest summary is: **Jeff 1 is a calibration win and a small but real accuracy
 loss on the split large enough to measure it.**
 
-That gap is concentrated, not diffuse. Almost all of it sits in
-`not_enough_info` recall on single-passage rows (see Failure Modes); on
-multi-passage rows Jeff 1 is *more* accurate than Jev. Recovering our
-`not_enough_info` recall to Jev's level on the rows where we lose would move the
-scale split to 0.8503, i.e. ahead of Jev — so this is a targeted defect, not a
-capacity ceiling.
+That gap is concentrated, not diffuse: the bulk sits in `not_enough_info` recall
+on single-passage rows (see Failure Modes), and on multi-passage rows Jeff 1 is
+*more* accurate than Jev.
+
+Restoring our recall to Jev's level in various cells would add:
+
+| restore | rows | accuracy | vs Jev (8,059) |
+|---|---|---|---|
+| NEI, single-passage rows only | +208 | 8,170/9,730 = **0.8397** | +111 ahead |
+| NEI, all strata | +281 | 8,243/9,730 = **0.8472** | +184 ahead |
+| every trailing cell (refuted included) | +311 | 8,273/9,730 = **0.8503** | +214 ahead |
+
+These are **oracle relabelling** figures — they reassign Jeff 1's existing wrong
+predictions to the right label. They measure **headroom**: the surviving errors
+sit in one identifiable class rather than spread thinly. They do **not** show the
+trained model can reach those numbers; that would require it to emit different
+predictions, which only a retrain can demonstrate.
+
+**But do not read this as "not over-claiming."** Jeff 1 over-claims on **both**
+classes, and more often than Jev on both: it answers `supported` for **12.3%** of
+gold-`refuted` rows against Jev's **6.2%**, and for **24.4%** of
+gold-`not_enough_info` rows against Jev's **14.3%**. Higher supported-class recall
+is a different statistic and does not offset that.
 
 One further caution for anyone tuning this model: the two splits disagree on the
 direction of a fix. Applying a bias to the `supported` label gains 2 rows on the
@@ -143,21 +160,31 @@ Written candidly, because they are the honest way to use this model:
   single-passage rows (8,643 of 9,730) the picture is sharp — supported recall
   0.9469 vs 0.9339 (we win), refuted 0.8007 vs 0.8080 (even), `not_enough_info`
   **0.5229 vs 0.6554** (we lose 208 rows). On the 859 multi-passage rows Jeff 1 is
-  *more* accurate than Jev (0.6694 vs 0.5914). The defect is therefore narrower
-  than "over-claiming": we treat a topically-relevant passage as if it entailed
-  the claim. Matching Jev's recall cell-by-cell on the rows where we lose would
-  put the scale split at 0.8503, ahead of Jev.
-- **Controlled probes isolate the failure (both run against live Jev on the same
-  rows).** `scripts/probe_conjunction.py`: Jeff 1 5/9, Jev 9/9. Jeff 1 passes the
-  falsified-conjunct arm (3/3) and the both-halves-true control (2/2) but fails
-  every arm where the claim runs past the evidence — a conjunct with *no* evidence
-  (0/2; gold `not_enough_info`, Jeff 1 says 'supported' at 0.67–0.72) and a claim
-  that overstates a measured number (0/2; gold 'refuted', Jeff 1 says 'supported'
-  at 0.83–0.91). `scripts/probe_granularity_jev.py`: text held constant, only
-  passage chunking varied — Jeff 1 **0/5**, Jev **5/5**, with Jeff 1's confidence
-  swinging 0.506 → 0.946 across near-identical inputs. So the failure is
-  systematic, it is a confidence *instability* as much as an accuracy error, and
-  live Jev is correct at 0.99–1.00 confidence exactly where Jeff 1 is wrong.
+  *more* accurate than Jev (0.6694 vs 0.5914). The defect is **located**, not
+  excused: we treat a topically-relevant passage as if it entailed the claim, and
+  that *is* over-claiming — Jeff 1 over-claims on both classes and more than Jev
+  on both (refuted→supported 12.3% vs 6.2%; NEI→supported 24.4% vs 14.3%). What
+  the stratification adds is *where* it costs accuracy: the net deficit lands in
+  NEI recall. Oracle relabelling adds, by scope: 208 rows on single-passage NEI
+  (→ 0.8397, +111 vs Jev), 281 rows on NEI across all strata (→ 0.8472, +184), or
+  311 rows across every trailing cell (→ 0.8503, +214). These are headroom
+  figures, not achievable-accuracy claims — see the Results section.
+- **Controlled probes locate the failure (both run against live Jev on the same
+  rows).** `scripts/probe_conjunction.py`: Jeff 1 5/9, Jev 9/9. Note the shape of
+  that result — it is **not** a general "conjunctions break Jeff 1" rule. Jeff 1
+  passes the explicitly falsified-conjunct arm **3/3** and the both-halves-true
+  control **2/2**; it fails specifically when a conjunct is **absent**
+  (0/2; gold `not_enough_info`, Jeff 1 says 'supported' at 0.67–0.72) or the
+  claim **overstates** a measured number (0/2; gold 'refuted', Jeff 1 says
+  'supported' at 0.83–0.91). On the demo-shaped tied case — one conjunct true,
+  the other merely equal, not better — Jeff 1 also returned 'supported', so the
+  failure includes a tied component, not only an absent one.
+  `scripts/probe_granularity_jev.py`: **near-identical variants
+  changed both the wording and the passage structure** — Jeff 1 **0/5**, Jev
+  **5/5**, with Jeff 1's confidence swinging 0.506 → 0.946. Because wording and
+  chunking moved together, this probe does NOT isolate passage structure as the
+  cause; what it shows is **brittleness**: near-identical inputs flip the verdict.
+  Live Jev is correct at 0.99–1.00 confidence exactly where Jeff 1 is wrong.
 - **Inference-time logit bias is not the fix.** A global 'supported' logit nudge
   is strictly worse than identity on the 9,730-row scale split; the honest
   correction is retraining with more counterexamples, not a bias term. A direct

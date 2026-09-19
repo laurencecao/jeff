@@ -279,14 +279,15 @@
       "ours": "5/9",
       "jev": "9/9",
       "arms": {"conj-falsified": "3/3", "conj-both (control)": "2/2", "conj-absent": "0/2", "partial-scale": "0/2"},
-      "reading": "We are NOT generally over-claiming. We pass the falsified-conjunct arm and the both-halves-true control, and fail only where the claim runs past the evidence: a conjunct with no evidence (we say 'supported' 0.67-0.72; Jev says not_enough_info 0.99) or a claim that overstates a measured number (we say 'supported' 0.83-0.91; Jev says refuted 0.87-1.00)."
+      "reading": "Shapes the failure; it is NOT a general 'conjunctions break it' rule. We pass the explicitly falsified-conjunct arm 3/3 and the both-halves-true control 2/2, and fail specifically when a conjunct is ABSENT (0/2; we say 'supported' 0.67-0.72, Jev says not_enough_info 0.99) or the claim OVERSTATES a measured number (0/2; we say 'supported' 0.83-0.91, Jev says refuted 0.87-1.00). The demo-shaped TIED case also failed (one conjunct true, the other merely equal), so the failure is not limited to absent evidence.",
+      "does_not_negate": "These 9 probes do NOT show we over-claim less often than Jev in general. On the scale split we over-claim on BOTH classes: refuted->supported 12.3% vs Jev's 6.2%, and not_enough_info->supported 24.4% vs Jev's 14.3%."
     },
     "granularity": {
       "script": "scripts/probe_granularity_jev.py",
       "ours": "0/5",
       "jev": "5/5",
       "confidence_swing": "0.506 to 0.946 across near-identical inputs",
-      "reading": "Text held constant, only passage chunking varied. The failure is a confidence INSTABILITY as much as an accuracy error: Jev answers at 0.99-1.00 exactly where we answer wrong at 0.5-0.95."
+      "reading": "Near-identical variants changed BOTH the wording and the passage structure, so this probe does not isolate passage structure as the cause. What it establishes is BRITTLENESS: near-identical inputs flip the verdict and swing confidence 0.506-0.946. Jev answers at 0.99-1.00 exactly where we answer wrong at 0.5-0.95."
     },
     "jaggedness": {
       "script": "scripts/probe_jaggedness.py",
@@ -310,7 +311,17 @@
       "gold_not_enough_info_recall": {"ours": 0.5229, "jev": 0.6554, "delta_rows": -208}
     },
     "five_passage_stratum": {"n": 859, "all_source": "climate_fever", "ours_accuracy": 0.6694, "jev_accuracy": 0.5914, "note": "we are better on multi-passage"},
-    "oracle_if_recall_matched_cell_by_cell": {"extra_rows": 311, "accuracy": 0.8503, "note": "would put us ~+214 rows AHEAD of Jev; fixing NEI alone wins rather than ties"}
+    "oracle_relabelling": {
+      "what_this_is": "Oracle relabelling of Jeff 1's OWN existing wrong predictions to the right label. Measures HEADROOM — where the surviving errors sit — not what the trained model can achieve. Realizing any of it requires the model to emit different predictions, i.e. a retrain.",
+      "ours_correct": 7962,
+      "jev_correct": 8059,
+      "scopes": [
+        {"restore": "nei_recall_single_passage_rows_only", "extra_rows": 208, "correct": 8170, "accuracy": 0.8397, "vs_jev_rows": 111, "note": "ahead of Jev already"},
+        {"restore": "nei_recall_all_strata", "extra_rows": 281, "correct": 8243, "accuracy": 0.8472, "vs_jev_rows": 184, "note": "closing NEI alone would suffice to pass Jev"},
+        {"restore": "every_cell_where_we_trail_jev", "extra_rows": 311, "correct": 8273, "accuracy": 0.8503, "vs_jev_rows": 214, "note": "includes the refuted cells, not NEI alone"}
+      ],
+      "common_misreading": "Quoting the 311-row / 0.8503 figure as 'fixing NEI alone' conflates the all-cell scope with the NEI-only scope; the NEI-only figure is 281 rows / 0.8472."
+    }
   },
   "harness": {
     "local_loop": "omp autoresearch on the jev_clf repo (delegating autoresearch.sh in the session repo)",

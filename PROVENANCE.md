@@ -148,10 +148,17 @@ does not spend compute rediscovering it.
   different order. 4.43× faster (2159 → 488 ms/question) but first-token deltas
   up to 4.2e-03, enough to flip borderline rows. Opt-in demo accelerator only.
 
-## 8. The measured gap, and what it is not
+## 8. The measured gap: where it is, and what it is not
 
-The scale deficit is **not** diffuse over-claiming. By gold class, Jeff 1 makes
-**fewer** errors than Jev on supported claims and **more** on weak evidence:
+Jeff 1 over-claims on **both** classes, more often than Jev on both:
+refuted→supported **12.3%** vs Jev's **6.2%**; not_enough_info→supported **24.4%**
+vs Jev's **14.3%**. Being stronger on supported-class recall is a different
+statistic and does not offset it. What the stratification below shows is *where
+the over-claiming costs net accuracy* — the deficit lands in NEI recall, while
+supported-class recall runs in our favour. It does NOT show we over-claim less.
+
+By gold class, Jeff 1 makes **fewer** errors than Jev on supported claims and
+**more** on weak evidence:
 
 | gold class | our errors | Jev errors | delta |
 |---|---|---|---|
@@ -168,22 +175,45 @@ Restricted to the **single-passage** rows that make up 88.8% of the split:
 | **not_enough_info** | **0.5229** | **0.6554** | **−208** |
 
 On the 859 multi-passage rows (all `climate_fever`) we are **more** accurate than
-Jev (0.6694 vs 0.5914). Matching Jev's recall cell-by-cell where we lose would
-reach **0.8503** — about +214 rows *ahead* of Jev. Fixing NEI alone wins rather
-than ties.
+Jev (0.6694 vs 0.5914).
+
+Three distinct oracles, not to be conflated:
+
+| restore | rows | accuracy | vs Jev (8,059) |
+|---|---|---|---|
+| NEI recall, single-passage rows only | +208 | 8,170/9,730 = **0.8397** | +111 ahead |
+| NEI recall, **all** strata | +281 | 8,243/9,730 = **0.8472** | +184 ahead |
+| **every** cell where we trail Jev (refuted included) | +311 | 8,273/9,730 = **0.8503** | +214 ahead |
+
+So closing the `not_enough_info` deficit across all strata would on its own be
+enough to pass Jev, without touching any other cell.
+
+**What this does and does not mean.** These are oracle relabelling figures: they
+reassign the model's own existing predictions to the right answer where it was
+wrong. They measure **headroom**, i.e. that the surviving errors are concentrated
+in one identifiable class rather than spread thinly. They do NOT show the trained
+model can realize that headroom — doing so requires the model to produce
+different predictions, which is exactly what a retrain would have to demonstrate.
 
 Two controlled probes agree, each run against live Jev on the same rows:
 
 - `scripts/probe_conjunction.py` — **ours 5/9, Jev 9/9.** We pass the
-  falsified-conjunct arm (3/3) and the both-halves-true control (2/2) and fail
-  only where the claim runs past the evidence: a conjunct with no evidence
-  (0/2 — we say `supported` at 0.67–0.72, Jev says `not_enough_info` at 0.99) or
-  a claim overstating a measured number (0/2 — we say `supported` at 0.83–0.91,
-  Jev says `refuted` at 0.87–1.00).
-- `scripts/probe_granularity_jev.py` — **ours 0/5, Jev 5/5**, with the text held
-  constant and only passage chunking varied. Our confidence swings 0.506 → 0.946
-  across near-identical inputs. This is a **confidence instability** as much as
-  an accuracy error, and Jev is right at 0.99–1.00 exactly where we are wrong.
+  falsified-conjunct arm (3/3) and the both-halves-true control (2/2). This is
+  **not** a general "conjunctions break Jeff 1" rule — it fails specifically when
+  a conjunct is **absent** (0/2 — we say `supported` at 0.67–0.72, Jev says
+  `not_enough_info` at 0.99) or the claim **overstates** a measured number (0/2 —
+  we say `supported` at 0.83–0.91, Jev says `refuted` at 0.87–1.00). The
+  demo-shaped **tied** case failed too, so the failure is not limited to absent
+  evidence. These 9 probes do **not** show we over-claim less often than Jev in
+  general: on the scale split we over-claim on *both* classes —
+  refuted→supported 12.3% vs Jev's 6.2%, and not_enough_info→supported 24.4% vs
+  Jev's 14.3%.
+- `scripts/probe_granularity_jev.py` — **ours 0/5, Jev 5/5**. Near-identical
+  variants changed **both the wording and the passage structure**, so this probe
+  does **not** isolate passage structure as the cause; wording and chunking moved
+  together. What it establishes is **brittleness**: near-identical inputs flip
+  the verdict, with confidence swinging 0.506 → 0.946. Jev is right at 0.99–1.00
+  exactly where we are wrong.
 
 ## 9. Protocol
 
