@@ -72,11 +72,30 @@ superiority.
 
 ## The one bounded experiment (authoritative)
 
-Everything below is the experiment. Contrastive-prompt pair generation is NOT part
-of it — that belongs to the *other* RLCD acronym (Yang et al.) and supplies no
-correctness reward for TypeSafe-style RLCD. Live Jev is NOT used as the reward:
-imitating a teacher that is itself only ~0.83 accurate on this data would train
-the model toward the teacher's errors. Gold labels are the reward.
+> **STATUS: the reward arm is DEMOTED, not primary. Do not run it first.**
+> Two independent measurements killed it as the lead option:
+>
+> 1. Its gradient is ~1000x weaker than CE on the confidently-wrong rows this
+>    deficit lives in (`|grad|` ratio 0.0010 at `p_gold=0.001`).
+> 2. Its soft variant collapses to `argmax(q)` at convergence (measured KL 0.415
+>    vs 0.0002 for soft CE on the same target), so it does not preserve teacher
+>    uncertainty either.
+>
+> The better target for the `not_enough_info` deficit is the already-written,
+> pre-registered soft-target distillation arm
+> (`scripts/jev_clf_lora_train.py`, `PREREGISTRATION_soft_distill.md`), which
+> computes `KL(q || pi)` — a proper scoring rule minimised at `pi = q`.
+> Everything below is kept as the record of the RL arm's design and its failure.
+
+Contrastive-prompt pair generation is NOT part of this experiment — that belongs
+to the *other* RLCD acronym (Yang et al.) and supplies no correctness reward for
+TypeSafe-style RLCD.
+
+**Reward source is mixed, not "gold".** Human-labelled rows (1,805) supply a hard
+`gold`. Teacher-labelled rows (6,021) supply `soft_target = q`, the teacher's full
+distribution, giving `E_q[R] = sum_a q(a) pi(a)`. Live Jev is NOT re-queried as a
+reward: the teacher labels already in the data are reused, and a teacher that is
+itself ~0.83 accurate is an imperfect correctness signal either way.
 
 **Source rows.** `data/factcheck/sft_train_multi.jsonl`, `question_id == 'verdict'`,
 `split == 'train'`, minus the 198 calibration-carve groups. Measured: **7,826
@@ -97,9 +116,9 @@ uncertainty. A proper scoring rule that is actually minimised at `pi = q` is sof
 cross-entropy `-sum_a q(a) log pi(a)` (or KL(pi || q)), which is what
 `scripts/jev_clf_lora_train.py` already implements.
 
-**Objective — Arm A (primary).** The reward is enumerable over 3 labels
-(`r(a) = 1[a == gold]`), so the exact expected-reward objective is available and is
-the primary arm, not REINFORCE:
+**Objective — Arm A (DEMOTED; kept for the record).** The reward is enumerable
+over 3 labels (`r(a) = 1[a == gold]`), so the exact expected-reward objective is
+available in closed form rather than needing REINFORCE:
 
     L_A = -mean_s( pi(gold | s) )  +  beta * KL( pi(.|s) || pi_ref(.|s) )
 

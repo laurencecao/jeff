@@ -134,11 +134,26 @@ def exact_reward_loss(
     a reward from step one, and it is NOT the same as preserving q.
 
     If preserving teacher uncertainty is the goal, the right form is a proper
-    scoring rule whose optimum IS q -- soft cross-entropy -sum_a q(a) log pi(a),
-    or KL(pi || q), both minimised at pi = q. That is what
-    scripts/jev_clf_lora_train.py's soft-target term already does, and it is why
-    the pre-registered soft-distillation arm is the better target for this deficit
-    than either form of the reward objective here.
+    scoring rule whose optimum IS q. DIRECTION MATTERS for which one to name:
+
+      KL(q || pi) = sum_a q(a) log(q(a)/pi(a))   <- what jev_clf_lora_train.py
+                                                    actually computes (the code
+                                                    reads: q * (log q - log pi),
+                                                    described there as
+                                                    'KL(teacher || student)')
+      KL(pi || q) = sum_a pi(a) log(pi(a)/q(a))
+
+    Both are minimised at pi = q, so either works as a target. But only
+    KL(q || pi) equals soft cross-entropy -sum_a q(a) log pi(a) up to a term that
+    depends on q alone -- i.e. only that direction is the same objective as the
+    soft-CE form, differing by a constant the gradient never sees. KL(pi || q) is
+    a different function of pi (it is mass-weighted toward the student's own
+    errors), so the two are not interchangeable when comparing losses.
+
+    This repo's trainer computes KL(q || pi), and this module's exact_kl computes
+    KL(first || second). That is why the pre-registered soft-distillation arm --
+    not either form of the reward objective here -- is the better target for this
+    deficit.
 
     Passing neither `gold` nor `soft_target` is an error: there is no reward.
 
@@ -196,121 +211,6 @@ def exact_reward_loss(
         "min_expected_reward": float(expected_r.detach().min()) if expected_r.numel() else 0.0,
         "saturated_frac": float((expected_r.detach() > 0.99).float().mean())
         if expected_r.numel() else 0.0,
-    }
-    return loss, diag
-
-    """
-    cfg = cfg or PGConfig()
-    if policy_logprobs.ndim != 2:
-        raise ValueError("policy_logprobs must be [n, L]")
-    n, L = policy_logprobs.shape
-    if (gold is None) == (soft_target is None):
-        raise ValueError("pass exactly one of gold (hard) or soft_target (distribution)")
-
-    pi = policy_logprobs.exp()
-
-    if gold is not None:
-        if gold.shape != (n,):
-            raise ValueError(f"gold must be [{n}]")
-        if gold.numel() and (int(gold.min()) < 0 or int(gold.max()) >= L):
-            raise ValueError("gold index out of range for the label space")
-        expected_r = pi.gather(1, gold.view(-1, 1)).squeeze(1)
-        source = "hard_gold"
-    else:
-        assert soft_target is not None
-        if soft_target.shape != (n, L):
-            raise ValueError(f"soft_target must be [{n}, {L}]")
-        # q need not be normalized to be a valid expectation, but a non-normalized
-        # target is almost certainly a bug (logits passed instead of probabilities).
-        row_sums = soft_target.sum(dim=-1).float()
-        if soft_target.numel() and not torch.allclose(
-            row_sums, torch.ones_like(row_sums), atol=1e-2
-        ):
-            raise ValueError(
-                "soft_target rows must sum to 1; pass probabilities, not logits"
-            )
-        expected_r = (soft_target * pi).sum(dim=-1)
-        source = "soft_teacher"
-
-    reward_term = -expected_r.mean()
-
-    kl = torch.zeros((), dtype=policy_logprobs.dtype, device=policy_logprobs.device)
-    if ref_logprobs is not None:
-        kl = exact_kl(policy_logprobs, ref_logprobs)
-
-    loss = reward_term + cfg.kl_beta * kl
-
-    if cfg.entropy_beta:
-        entropy = -(pi * policy_logprobs).sum(dim=-1)
-        loss = loss - cfg.entropy_beta * entropy.mean()
-
-    diag = {
-        "reward_source": source,  # type: ignore[dict-item]
-        "reward_term": float(reward_term.detach()),
-        "kl_term": float(kl.detach()),
-        "mean_expected_reward": float(expected_r.detach().mean()),
-        "min_expected_reward": float(expected_r.detach().min()) if expected_r.numel() else 0.0,
-        "saturated_frac": float((expected_r.detach() > 0.99).float().mean())
-        if expected_r.numel() else 0.0,
-    }
-    return loss, diag
-
-    Relationship to CE, stated precisely because a sloppy version is tempting.
-    With z_gold the correct-class logit:
-
-      CE             objective  log pi(gold);  d/dz_gold = p_gold - 1
-      exact reward   objective  pi(gold);      d/dz_gold = -p_gold * (1 - p_gold)
-
-    Both objectives drive p_gold toward 1 and both are zero-gain once p_gold = 1,
-    so "CE saturates and reward does not" is WRONG. The difference that matters is
-    at CONFIDENTLY WRONG examples:
-
-      CE:            |grad| = 1 - p_gold          -> approaches 1 as p_gold -> 0
-      exact reward:  |grad| = p_gold*(1 - p_gold) -> approaches 0 as p_gold -> 0
-                                                     (peak only at p_gold = 0.5)
-
-    So this arm's gradient VANISHES exactly on the hard, confidently-wrong
-    examples -- and the not_enough_info rows we are trying to fix are precisely
-    those. Zero variance is NOT the same as better optimisation: this objective is
-    lower-variance but has a pathological flat region where the data most needs a
-    signal. Measure it (scripts/test_pg_toy.py section 7), do not assume it away.
-
-    On the KL anchor as a mitigation: it does NOT rescue this. The anchor pulls
-    toward the FROZEN REFERENCE, and if the reference already assigns p_gold ~ 0
-    for a hard example -- which is exactly the case for the rows this arm is meant
-    to fix -- then the KL term actively holds the policy there. The anchor bounds
-    drift; it does not restore gradient on the flat region. Whether it helps or
-    hurts must be measured against the cached reference probabilities.
-    """
-    cfg = cfg or PGConfig()
-    if policy_logprobs.ndim != 2:
-        raise ValueError("policy_logprobs must be [n, L]")
-    n, L = policy_logprobs.shape
-    if gold.shape != (n,):
-        raise ValueError(f"gold must be [{n}]")
-    if gold.numel() and (int(gold.min()) < 0 or int(gold.max()) >= L):
-        raise ValueError("gold index out of range for the label space")
-
-    pi = policy_logprobs.exp()
-    p_gold = pi.gather(1, gold.view(-1, 1)).squeeze(1)
-    reward_term = -p_gold.mean()
-
-    kl = torch.zeros((), dtype=policy_logprobs.dtype, device=policy_logprobs.device)
-    if ref_logprobs is not None:
-        kl = exact_kl(policy_logprobs, ref_logprobs)
-
-    loss = reward_term + cfg.kl_beta * kl
-
-    if cfg.entropy_beta:
-        entropy = -(pi * policy_logprobs).sum(dim=-1)
-        loss = loss - cfg.entropy_beta * entropy.mean()
-
-    diag = {
-        "reward_term": float(reward_term.detach()),
-        "kl_term": float(kl.detach()),
-        "mean_p_gold": float(p_gold.mean()),
-        "min_p_gold": float(p_gold.min()) if p_gold.numel() else 0.0,
-        "saturated_frac": float((p_gold > 0.99).float().mean()) if p_gold.numel() else 0.0,
     }
     return loss, diag
 
