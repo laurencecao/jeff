@@ -70,43 +70,57 @@ over the label distribution, which is why it is the right default target for
 calibration and why an RL arm must justify itself against it rather than assume
 superiority.
 
-## What is therefore in scope
+## The one bounded experiment (authoritative)
 
-Split the two things that RLCD fuses, and be explicit about the seam:
+Everything below is the experiment. Contrastive-prompt pair generation is NOT part
+of it — that belongs to the *other* RLCD acronym (Yang et al.) and supplies no
+correctness reward for TypeSafe-style RLCD. Live Jev is NOT used as the reward:
+imitating a teacher that is itself only ~0.83 accurate on this data would train
+the model toward the teacher's errors. Gold labels are the reward.
 
-**Arm A (primary, RL).** Optimize **decision correctness** with an actual policy
-objective on train-only states. Reward = correctness of the emitted label.
-Objective = policy gradient with a frozen reference for a KL anchor (GRPO-style
-group-relative advantage, or REINFORCE with a baseline). This is genuine RL, and
-it targets the measured NEI-recall deficit.
+**Source rows.** `data/factcheck/sft_train_multi.jsonl`, `question_id == 'verdict'`,
+`split == 'train'`, minus the 198 calibration-carve groups. Measured: **7,826
+rows** (7,000 Jev-distilled + the human-labelled verdict rows that survive the
+carve). Label space is always the 3 verdict labels.
 
-**Calibration is then handled separately, not smuggled into the reward:** post-hoc
-calibration (temperature scaling / isotonic) fitted on a **dedicated calibration
-carve taken from the legal train states**, and *evaluated* on untouched states.
+**Objective — Arm A (primary).** The reward is enumerable over 3 labels
+(`r(a) = 1[a == gold]`), so the exact expected-reward objective is available and is
+the primary arm, not REINFORCE:
 
-The carve is now a real artifact, not prose:
-`scripts/make_calib_carve.py` writes `data/factcheck/calib_carve.jsonl` (238 rows)
-and `calib_carve_ids.json` (the row and group ids), so downstream code can
-**exclude** these rows mechanically.
+    L_A = -mean_s( pi(gold | s) )  +  beta * KL( pi(.|s) || pi_ref(.|s) )
 
-Verified properties: drawn only from `split='train'`; **238 rows across 198
-groups**, group-disjoint from the remaining 1,007 groups (asserted, not assumed);
-class mix 104 supported / 80 NEI / 54 refuted. Those 238 rows are excluded from
-both Arm A and Arm B.
+Zero sampling variance, no baseline, no degenerate-batch handling. Its known
+weakness must be measured, not assumed away: `d/dz_gold = -p_gold*(1-p_gold)`, so
+its gradient vanishes on confidently-wrong rows — exactly the NEI rows this arm
+targets. Section 7 of `scripts/test_pg_toy.py` measures the gradient at
+`p_gold` in {0.001, 0.5, 0.999}. REINFORCE is kept only as a parity check.
 
-Note the tooling caveat: `train.py` already reports `val_ece_temperature` and
-`val_ece_isotonic`, but it fits them **on the sealed val split**. That is fine for
-the legacy SFT loop, where val is only a smoke test, but it is **not** acceptable
-here: fitting on val and then reporting val ECE is a leak. This arm fits on the
-train-derived carve and reports val/test/scale untouched.
+**Objective — Arm B (control, mandatory).** Plain cross-entropy on the same rows,
+same optimizer, same effective batch, same epochs. CE's gradient is `p_gold - 1`,
+i.e. it does NOT vanish on hard errors, so this is a real competitor rather than a
+straw man. Without Arm B no gain can be attributed to the objective.
 
-**Arm B (control, mandatory).** Matched **chosen-only SFT** on the same rows, same
-optimizer budget, same effective batch. Without this, any gain is attributable to
-"more hard negatives" or "more steps" rather than to the policy objective.
+**Calibration.** Not in the reward. Post-hoc temperature/isotonic fitted on the
+238-row carve only, then applied unchanged to val/test/scale. `train.py` currently
+fits these on the sealed val split, which is a leak for this arm and must not be
+reused; fitting on val and reporting val ECE is circular.
 
-**Abstention.** An explicit `not_enough_info` action, since NEI recall is the
-deficit. Reward shaping must state whether abstention is rewarded or merely
-permitted.
+**Metrics, all on untouched data.** Scale accuracy (n=9,730) as primary; scale ECE;
+NEI recall on single-passage rows; the three probe families (conjunction,
+granularity, jaggedness); and the capability-parity check (Noul/Score + six
+shapes) because choice-only preference tuning can regress multi-primitive
+behaviour.
+
+**Reported alongside each other, never collapsed:** Arm A vs Arm B vs the current
+`lora_4b_multi` baseline, on the same rows, with paired McNemar.
+
+**Abstention.** `not_enough_info` is a normal label in the space, so it is
+permitted by construction. Whether it should be *rewarded* beyond correctness is
+explicitly out of scope for this first arm — the honest default is to reward
+correctness only and see what the NEI recall does.
+
+**Not in this experiment:** contrastive prompt pairs, reward models, PPO, live-Jev
+reward, and mining `eval_large` errors into training.
 
 ## Data discipline (non-negotiable)
 
@@ -139,25 +153,28 @@ RL over a calibrated reward.
 
 ## First bounded experiment
 
-1. Build the train-only pool: 12,119 rows, gated disjoint.
-2. Generate contrastive/negative material for the three failing shapes
-   (absent, tied, overstated evidence) on train-only states.
-3. Score with live Jev as teacher/reward on those **new** rows only.
-4. Train **Arm A** (policy gradient, correctness reward, KL anchor) from the
-   current `lora_4b_multi` adapter.
-5. Train **Arm B** (chosen-only SFT control) on the same rows and budget.
-6. Evaluate only on untouched `val` (n=199), the 9,730 scale split, and the
-   held-out probes. Report accuracy, ECE, and the three probe families.
-7. Gate Noul/Score and six-shape capability parity afterwards — choice-only
-   preference tuning can regress the multi-primitive behaviour.
+1. Emit the two arm datasets from the gated pool (same rows, one artifact each):
+   Arm A and Arm B see identical rows; only the objective differs.
+2. Cache the frozen reference's full `[n, L]` log-prob vector per row, once, from
+   `artifacts/jev_clf/lora_4b_multi`. Never hold policy and reference in memory
+   simultaneously — that is what the cache is for.
+3. Train **Arm A** (`-mean pi(gold) + beta*KL`) from `lora_4b_multi`.
+4. Train **Arm B** (matched CE) on the same rows, same optimizer/epochs/batch.
+5. Fit temperature/isotonic on the 238-row carve ONLY; apply unchanged downstream.
+6. Evaluate on untouched `val` (n=199), the 9,730 scale split, and the held-out
+   probes. Report accuracy, ECE, NEI recall, and the three probe families.
+7. Gate Noul/Score and six-shape capability parity — choice-only tuning can
+   regress multi-primitive behaviour.
+8. Report Arm A vs Arm B vs the `lora_4b_multi` baseline with paired McNemar.
 
 ## Compute constraint
 
-`trl` is not installed; the local box is an M3 Max with 36 GB unified memory,
-where a 4B LoRA at batch 4 x 2048 already OOM-killed at step 2. **This arm needs
-GPU.** Colab was returning no sessions as of this writing (A100 reclaimed within
-minutes; per-epoch checkpointing and `--resume` are in place so a recycle costs at
-most one epoch).
+`trl` is not installed and is not needed — the objective is a pure-tensor loss
+plus a custom loop, which is also why it could be verified on CPU first. The local
+box is an M3 Max with 36 GB unified memory, where a 4B LoRA at batch 4 x 2048
+OOM-killed at step 2, so **the 4B runs need a GPU**. Colab was returning no
+sessions as of this writing. Per-epoch checkpointing and `--resume` are in place
+so a recycle costs at most one epoch.
 
 ## Failure conditions (stated before running)
 
