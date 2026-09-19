@@ -1,0 +1,57 @@
+[jev] model = jev-1.13.0
+
+--- gradient_kills_the_arm ---
+   0.9900  arm_a_is_wrong_tool
+   0.0100  entropy_bonus_fixes
+   0.0000  kl_anchor_helps
+   0.0000  worth_running_anyway
+   -> arm_a_is_wrong_tool
+
+--- what_would_jev_do ---
+   0.9400  cross_entropy_with_better_targets
+   0.0500  confidence_head
+   0.0100  sampled_reinforce
+   0.0000  exact_reward_rl
+   -> cross_entropy_with_better_targets
+
+--- calibration_plan_ok ---
+   0.8000  yes
+   0.2000  no
+   -> yes
+
+--- honesty ---
+   0.5000  0
+   0.2700  1
+   0.2000  2
+   0.0300  3
+   -> 0
+
+# --- reading of the above ---------------------------------------------------
+# Recorded 2026-09-19. Reviewed with LIVE Jev 1.13.0 over its HTTP API
+# (jev_clf.jev.JevTeacher), same rows/questions in one call.
+#
+# gradient_kills_the_arm -> arm_a_is_wrong_tool @ 0.99
+#   Jev rejects the KL-anchor mitigation (0.0000) and 'worth_running_anyway'
+#   (0.0000). This AGREES with the independently measured gradient ratio: the
+#   exact-reward objective's |grad| is 0.0010x CE's at p_gold=0.001, i.e. it is
+#   ~1000x weaker on exactly the confidently-wrong NEI rows the arm targets.
+#   Two independent lines (arithmetic + external judge) reach the same verdict.
+#
+# what_would_jev_do -> cross_entropy_with_better_targets @ 0.94
+#   exact_reward_rl 0.0000, sampled_reinforce 0.01, confidence_head 0.05.
+#   The recommendation is to keep CE -- a proper scoring rule whose gradient does
+#   not vanish on hard rows -- and change the TARGETS or the DATA instead.
+#   Note this points back at the soft-target distillation arm that is already
+#   pre-registered (PREREGISTRATION_soft_distill.md) and blocked only on Colab
+#   quota, not at a new RL objective.
+#
+# calibration_plan_ok -> yes @ 0.80 (carve-only fit is sound)
+#
+# honesty -> 'no evidence yet, pure hypothesis' @ 0.50
+#   Correct and consistent with our own framing: Arm A is a hypothesis, not a
+#   measured improvement.
+#
+# CAVEAT, unchanged from every other Jev use in this repo: Jev is ~0.83 accurate
+# on our data. This is a calibrated second opinion, not ground truth. It is
+# recorded because it independently reproduces the arithmetic, not because it is
+# authoritative.
