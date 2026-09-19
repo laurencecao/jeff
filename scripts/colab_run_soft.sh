@@ -55,8 +55,10 @@ cd /content/jev
 echo "=== data present ==="
 wc -l data/factcheck/sft_train_multi.jsonl data/factcheck/sft_val.jsonl
 
+SOFT_CONFIG="${SOFT_CONFIG:-configs/jev_clf_lora_soft.yaml}"
+
 echo "=== config diff (must be ONLY out_dir/run_name/soft_target_weight) ==="
-diff configs/jev_clf_lora_multi.yaml configs/jev_clf_lora_soft.yaml || true
+diff configs/jev_clf_lora_multi.yaml "$SOFT_CONFIG" || true
 
 ARM=artifacts/jev_clf/lora_4b_soft
 
@@ -91,7 +93,7 @@ WATCHER=$!
 # --- train -----------------------------------------------------------------
 export PYTHONUNBUFFERED=1
 python3 -u -m scripts.jev_clf_lora_train \
-  --config configs/jev_clf_lora_soft.yaml --resume
+  --config "${SOFT_CONFIG:-configs/jev_clf_lora_soft.yaml}" --resume
 rc=$?
 
 echo "TRAIN_RC=$rc"

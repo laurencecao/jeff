@@ -1,0 +1,40 @@
+# Soft-distill arm, T4 (15GB) variant.
+# Identical to configs/jev_clf_lora_soft.yaml EXCEPT batch_size 4->1 and
+# grad_accum 8->32, which keeps the EFFECTIVE batch at 32. Same optimizer
+# trajectory per step, same number of samples seen; only the micro-batch
+# split differs, so the arm remains a one-variable test vs lora_4b_multi.
+# Needed because an A100 was not available when this ran.
+model: Qwen/Qwen3-4B-Instruct-2507
+dtype: bfloat16
+max_length: 2048
+gradient_checkpointing: true
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+  - q_proj
+  - k_proj
+  - v_proj
+  - o_proj
+optim:
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 2
+  batch_size: 1
+  grad_accum: 32
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  seed: 42
+  soft_target_weight: 1.0
+data:
+  train: data/factcheck/sft_train_multi.jsonl
+  val: data/factcheck/sft_val.jsonl
+  prompt_format: eval
+  completion_leading_space: true
+  label_source_weights: {}
+out_dir: artifacts/jev_clf/lora_4b_soft
+mlflow:
+  uri: http://127.0.0.1:5001
+  experiment: jev-clf
+  run_name: jev-clf-lora-4b-soft-t4
