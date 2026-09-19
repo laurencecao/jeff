@@ -123,9 +123,22 @@ def exact_reward_loss(
       * teacher-labelled rows -> `soft_target` = the teacher's FULL distribution
         q(a|s), giving E_q[R] = sum_a q(a) pi(a). Using the teacher's argmax as if
         it were ground truth would optimise imitation of a teacher that is itself
-        ~0.83 accurate on this data, and would throw away the uncertainty the
-        teacher actually expressed (e.g. {refuted 0.93, NEI 0.07}). The soft form
-        keeps that signal and is the only defensible way to use teacher rows here.
+        ~0.83 accurate on this data.
+
+    LIMITATION OF THE SOFT FORM -- do not overstate it. `-sum_a q(a) pi(a)` is
+    linear in pi on the simplex, so its OPTIMUM is a one-hot at argmax(q). It
+    weights the gradient by the shape of q while training, but at convergence it
+    still collapses onto the teacher's single most likely label; it does NOT
+    preserve the teacher's uncertainty (e.g. {refuted 0.93, NEI 0.07} still
+    resolves to a hard `refuted`). That is strictly better than using argmax(q) as
+    a reward from step one, and it is NOT the same as preserving q.
+
+    If preserving teacher uncertainty is the goal, the right form is a proper
+    scoring rule whose optimum IS q -- soft cross-entropy -sum_a q(a) log pi(a),
+    or KL(pi || q), both minimised at pi = q. That is what
+    scripts/jev_clf_lora_train.py's soft-target term already does, and it is why
+    the pre-registered soft-distillation arm is the better target for this deficit
+    than either form of the reward objective here.
 
     Passing neither `gold` nor `soft_target` is an error: there is no reward.
 

@@ -80,8 +80,22 @@ the model toward the teacher's errors. Gold labels are the reward.
 
 **Source rows.** `data/factcheck/sft_train_multi.jsonl`, `question_id == 'verdict'`,
 `split == 'train'`, minus the 198 calibration-carve groups. Measured: **7,826
-rows** (7,000 Jev-distilled + the human-labelled verdict rows that survive the
-carve). Label space is always the 3 verdict labels.
+rows** — **6,021 teacher-labelled** (`label_source='jev-1.13.0'`) plus **1,805
+human-labelled** (`label_source='ground_truth'`). Label space is always the 3
+verdict labels. (An earlier draft said "7,000 Jev-distilled", which is the count
+in the UNCUT pool of 9,119 verdict rows, not the carve-excluded 7,826.)
+
+**Reward source, stated correctly.** Human rows supply a hard `gold`. Teacher rows
+supply `soft_target = q`, the teacher's full distribution, giving
+`E_q[R] = sum_a q(a) pi(a)`.
+
+But note the limitation, because it is easy to oversell: `-sum_a q(a) pi(a)` is
+linear in `pi`, so its optimum is a **one-hot at argmax(q)**. It weights the
+gradient by the shape of `q` during training and still collapses to the teacher's
+single most likely label at convergence — it does NOT preserve the teacher's
+uncertainty. A proper scoring rule that is actually minimised at `pi = q` is soft
+cross-entropy `-sum_a q(a) log pi(a)` (or KL(pi || q)), which is what
+`scripts/jev_clf_lora_train.py` already implements.
 
 **Objective — Arm A (primary).** The reward is enumerable over 3 labels
 (`r(a) = 1[a == gold]`), so the exact expected-reward objective is available and is

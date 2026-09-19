@@ -376,6 +376,51 @@ def main() -> None:
     except ValueError:
         print("  PASS - unnormalized soft target rejected")
 
+    print("\n=== 6c. the soft form's OPTIMUM is argmax(q), NOT q (measured) ===")
+    # Train the expected-reward objective on a fixed soft q and confirm it
+    # converges to a one-hot at argmax(q) rather than to pi == q.
+    torch.manual_seed(11)
+    q_target = torch.tensor([[0.93, 0.07, 0.0]])   # the teacher's hedged shape
+    logits = torch.zeros(1, N_ACTIONS, requires_grad=True)
+    opt = torch.optim.Adam([logits], lr=0.2)
+    for _ in range(500):
+        lp = torch.log_softmax(logits, dim=-1)
+        loss, _ = exact_reward_loss(lp, soft_target=q_target)
+        opt.zero_grad(); loss.backward(); opt.step()
+    with torch.no_grad():
+        pi_final = torch.softmax(logits, dim=-1)[0]
+    print(f"  teacher q          : {[round(float(x),4) for x in q_target[0]]}")
+    print(f"  converged pi       : {[round(float(x),4) for x in pi_final]}")
+    kl_to_q = float((q_target[0] * (q_target[0].clamp_min(1e-12).log()
+                     - pi_final.clamp_min(1e-12).log())).sum())
+    print(f"  KL(q || pi_final)  : {kl_to_q:.4f}  (0 would mean pi == q)")
+    print(f"  pi ~ one-hot at argmax(q): {float(pi_final.max()) > 0.99}")
+    if float(pi_final.max()) <= 0.99 or kl_to_q < 0.05:
+        print("  FAIL - soft form did NOT collapse to argmax(q); revisit the claim")
+        ok = False
+    else:
+        print("  PASS - measured: the reward optimum is argmax(q); teacher uncertainty")
+        print("         is weighted during training but NOT preserved at convergence")
+
+    print("\n=== 6d. soft CE is minimised AT q (the proper-scoring-rule contrast) ===")
+    logits2 = torch.zeros(1, N_ACTIONS, requires_grad=True)
+    opt2 = torch.optim.Adam([logits2], lr=0.2)
+    for _ in range(500):
+        lp = torch.log_softmax(logits2, dim=-1)
+        loss = -(q_target * lp).sum(-1).mean()     # soft cross-entropy, optimum pi=q
+        opt2.zero_grad(); loss.backward(); opt2.step()
+    with torch.no_grad():
+        pi_ce = torch.softmax(logits2, dim=-1)[0]
+    kl_ce = float((q_target[0] * (q_target[0].clamp_min(1e-12).log()
+                   - pi_ce.clamp_min(1e-12).log())).sum())
+    print(f"  soft-CE converged pi: {[round(float(x),4) for x in pi_ce]}")
+    print(f"  KL(q || pi_ce)      : {kl_ce:.6f}  (should be ~0)")
+    if kl_ce > 0.01:
+        print("  FAIL - soft CE did not converge to q")
+        ok = False
+    else:
+        print("  PASS - soft CE preserves q; the reward form does not")
+
     print("\n=== 7. the production helper owns sampling (no caller-supplied actions) ===")
     # Sampling is an invariant of the arm, and an integer index tensor carries no
     # grad either way, so argmax CANNOT be detected from the tensor itself. The
