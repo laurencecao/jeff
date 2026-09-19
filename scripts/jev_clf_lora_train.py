@@ -53,11 +53,68 @@ def load_config(path: str) -> dict:
         return yaml.safe_load(f)
 
 
-def load_sft_rows(path: Path) -> list[dict]:
+def load_sft_rows(
+    path: Path,
+    exclude_carve: bool = False,
+    expect_carve: bool = False,
+    required_split: str | None = "train",
+) -> list[dict]:
+    """Load training rows, refusing anything not provably train-only.
+
+    Guards, all fail-closed:
+
+    1. Every row must be split == 'train'. The earlier version only rejected
+       split == 'test', so a mistakenly included split == 'val' row would have
+       sailed straight through -- even though val is a reported holdout.
+
+    2. Calibration carve. `exclude_carve` defaults to **False** so every existing
+       SFT/LoRA config keeps its exact previous behaviour; an RLCD arm must opt in
+       explicitly via the config. When `exclude_carve` is True the carve artifact
+       is REQUIRED (`expect_carve` forces that even if the caller only sets
+       exclude_carve) and a missing file is a hard error, not a silent skip.
+       Rows whose group_id is in the reserved calibration groups, and rows whose
+       meta.gt_row_id names a carved row, are dropped; the filter is re-asserted
+       on the RESULT rather than assumed.
+    """
     rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-    bad = [r["row_id"] for r in rows if r.get("split") == "test"]
-    assert not bad, f"test-split rows must never reach training: {bad[:3]}"
-    return rows
+
+    bad = [r["row_id"] for r in rows if r.get("split") != required_split]
+    assert not bad, (
+        f"expected only split={required_split!r} rows in {path.name}; "
+        f"got {len(bad)} others: {bad[:3]}"
+    )
+
+    if not (exclude_carve or expect_carve):
+        return rows
+
+    carve_path = ROOT / "data/factcheck/calib_carve_ids.json"
+    if not carve_path.exists():
+        # Opting in but the artifact is absent must fail, never pass silently:
+        # training would then fit on rows the calibrator also fits on.
+        raise FileNotFoundError(
+            f"calibration exclusion requested but {carve_path} is missing; "
+            "run scripts.make_calib_carve first"
+        )
+
+    carve = json.loads(carve_path.read_text())
+    groups = set(carve.get("carved_group_ids") or [])
+    carved_rows = set(carve.get("carved_row_ids") or [])
+    assert groups, "carve artifact carries no carved_group_ids"
+
+    kept = [
+        r for r in rows
+        if r.get("group_id") not in groups
+        and (r.get("meta") or {}).get("gt_row_id") not in carved_rows
+    ]
+    dropped = len(rows) - len(kept)
+    leftover = groups & {r.get("group_id") for r in kept}
+    refs = [r["row_id"] for r in kept
+            if (r.get("meta") or {}).get("gt_row_id") in carved_rows]
+    assert not leftover, f"carve groups survived the filter: {list(leftover)[:3]}"
+    assert not refs, f"rows still reference a carved row: {refs[:3]}"
+    print(f"[carve] excluded {dropped} rows in {len(groups)} reserved calibration "
+          f"groups; training on {len(kept)} of {len(rows)}")
+    return kept
 
 
 def label_first_token_ids(tok, labels: list[str], leading_space: bool) -> list[int] | None:
@@ -321,8 +378,21 @@ def main() -> None:
         tok.pad_token = tok.eos_token
     pad_id = tok.pad_token_id
 
-    train_rows = load_sft_rows(ROOT / cfg["data"]["train"])
-    val_rows = load_sft_rows(ROOT / cfg["data"]["val"])
+    # The calibration carve is OPT-IN per config, so every existing SFT/LoRA arm
+    # keeps its exact previous row set. RLCD arms set data.exclude_calib_carve:
+    # true, and the loader then REQUIRES the carve artifact and asserts the
+    # filter held on the result.
+    exclude_carve = bool(cfg["data"].get("exclude_calib_carve", False))
+    train_rows = load_sft_rows(
+        ROOT / cfg["data"]["train"],
+        exclude_carve=exclude_carve,
+        expect_carve=exclude_carve,
+        required_split="train",
+    )
+    # Validation rows are split='val' by construction; no carve applies to them.
+    val_rows = load_sft_rows(
+        ROOT / cfg["data"]["val"], required_split="val", exclude_carve=False
+    )
     if args.max_rows:
         train_rows = train_rows[: args.max_rows]
     print(f"[data] train={len(train_rows)} val={len(val_rows)} "
