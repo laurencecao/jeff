@@ -1,0 +1,73 @@
+{
+  "digest": {
+    "what": "Jeff 1 is an Apache-2.0 LoRA on Qwen3-4B-Instruct-2507. Typed Choice/Noul/Score via restricted next-token readout. Code github.com/Gestalt-Lab/jeff (planned), weights GestaltLabs/Jeff-1 (planned). Independent of TypeSafe.",
+    "strengths_disclosed": [
+      "Open weights, local inference, call-time schemas",
+      "Scale n=9730 human labels, same rows as Jev 1.13.0",
+      "Jeff accuracy 0.8183 (7962/9730); Jev 0.8283 (8059/9730)",
+      "Jeff max-prob ECE 0.0807 vs Jev 0.0932 (like-for-like)",
+      "Exact McNemar p=0.0036; CI Jev-minus-Jeff [+0.0033,+0.0165]",
+      "HF card states Jev wins accuracy, Jeff wins this ECE, Jev wins Brier 0.275 vs 0.284",
+      "Card discloses over-claiming rates 12.3%/24.4% vs Jev 6.2%/14.3%",
+      "Card says n=199 is not a lead; val adapter is a different checkpoint",
+      "Card says tiny probes are not complete parity",
+      "Card includes how-to-use client, HTTP, and raw PEFT",
+      "Worked example in how-to-use is a known failure (gold refuted)"
+    ],
+    "possible_weaknesses": [
+      "This digest is a summary of the card, not the card itself",
+      "URLs are planned; repos not created at digest time",
+      "Capability-parity language historically overstated API-shape tests",
+      "Scale split already used for diagnosis",
+      "Jev stored-confidence ECE 0.0790 must not be compared"
+    ]
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "honest": {
+        "type": "noul",
+        "noul": 0.93
+      },
+      "missing": {
+        "type": "choice",
+        "choice": "why",
+        "confidence": 0.28,
+        "probabilities": {
+          "none": 0.01,
+          "what": 0.14,
+          "known_issues": 0.1,
+          "how_to_use": 0.31,
+          "why": 0.4,
+          "results": 0.04
+        }
+      },
+      "trust": {
+        "type": "score",
+        "score": 2.08,
+        "confidence": 0.54,
+        "legend": {
+          "0": "not at all",
+          "1": "low",
+          "2": "medium",
+          "3": "high"
+        },
+        "probabilities": {
+          "0": 0.0,
+          "1": 0.18,
+          "2": 0.55,
+          "3": 0.27
+        }
+      },
+      "ship": {
+        "type": "noul",
+        "noul": 0.55
+      }
+    },
+    "usage": {
+      "input_tokens": 998,
+      "output_tokens": 111
+    }
+  },
+  "note": "Judge of digest only, not the full markdown file."
+}

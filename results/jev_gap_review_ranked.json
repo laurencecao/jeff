@@ -1,0 +1,107 @@
+{
+  "request": {
+    "model": "jev-1.13.0",
+    "state": {
+      "goal": "Improve open local Jeff fact-checking and decision API; all actual training on Colab. Choose bounded work, not a new architecture by assertion. This digest is an incomplete human/agent summary, not the original full corpus.",
+      "measured": {
+        "scale_n": 9730,
+        "Jeff_correct": 7962,
+        "Jev_correct": 8059,
+        "Jeff_only_correct": 497,
+        "Jev_only_correct": 594,
+        "Jeff_maxprob_ECE": 0.080748451,
+        "Jev_maxprob_ECE": 0.093205498,
+        "calibration_caveat": "Jev Brier is lower than Jeff; lower ECE does not establish overall probability superiority. This evaluation set has already informed error analysis and threshold searches, so is no longer independent confirmatory evidence.",
+        "failure_shape": "Jeff improves supported recall relative to Jev but is worse on NEI, predominantly single-passage rows. Tiny probes fail missing conjuncts and overstated quantities.",
+        "implemented": "served model is Qwen3-4B+LoRA; arbitrary label schema at call time; non-generated typed output; Score uses full-label sequence likelihood when first tokens collide. Separate OptionScorer already encodes state once and attends semantic option queries, but is not serving."
+      },
+      "past_arms": {
+        "decision_rules": "Bias/threshold/TTA historically weak. Human-upweight test was 1.5B, not same 4B model.",
+        "native_encoder": "Qwen OptionScorer got no valid held-out score: val_files ignored, configured optim nesting ignored, mean loss divided by batch again. NaN was empty-validation sentinel. Thus not a clean failure of architecture.",
+        "soft_distill": "Not yet trained successfully. Existing teacher targets available. Proposed unchanged 12119 row recipe, 4x8 microbatch, CE + KL(q||p), eligible Choice/Noul 10319 rows; Score excluded by token collision. Hybrid optimum generally differs from q, unlike KL alone. Padding bug being fixed.",
+        "resume": "Checkpoint optimizer parameter ordering/config/RNG and atomic snapshot invariants not fully tested. A fresh uninterrupted run avoids resume dependency but does not retroactively prove historic baseline identical."
+      },
+      "landscape": {
+        "Simple_Jev_RFDT": "Current upstream trains selected candidate soft CE directly, with padded-candidate mask and disjoint context/source groups. Shared-prefix caches in inference; no separate learned classification head.",
+        "evidence_sufficiency": "Atanasova et al TACL 2022 evidence omission augmentation; later construction-aware work warns placeholder/no-evidence NEI does not transfer to topically related insufficient evidence.",
+        "calibration": "Guo et al temperature scaling is posthoc; must fit on independent carve. Existing baseline already trained on our carve, so no clean calibration comparison with it."
+      }
+    },
+    "questions": {
+      "next": {
+        "type": "choice",
+        "instructions": "Which next action has best expected fact-checking improvement per bounded GPU cost, given uncertainty? Choose one; do not treat your judgment as empirical evidence.",
+        "criteria": {
+          "hybrid_existing": "Fix candidate mask, validate disjointness, fresh full 2-epoch preregistered CE+KL run; historical control with explicit provenance caveats.",
+          "pure_decision": "New matched hard-vs-soft restricted-candidate CE runs; direct distillation objective, additional control compute.",
+          "targeted_data": "Create train-only topic-matched evidence-omission/partial-support examples with independent label checking, then matched retrain.",
+          "native_encoder": "Repair OptionScorer training/config/validation before a shared-state architecture pilot."
+        }
+      },
+      "replication": {
+        "type": "choice",
+        "instructions": "What does existing evidence establish about the separate shared-state OptionScorer?",
+        "criteria": {
+          "unresolved": "Implementation exists but quality experiment invalid; potential speed/quality remains unresolved.",
+          "failed": "Architecture shown unable to perform task.",
+          "superior": "Shown better than deployed model."
+        }
+      },
+      "hybrid": {
+        "type": "noul",
+        "instructions": "Does adding KL(q||p) to hard-target CE guarantee the TOTAL loss has its optimum at the teacher distribution q for non-one-hot q?"
+      },
+      "independence": {
+        "type": "noul",
+        "instructions": "Can this already repeatedly inspected scale set honestly serve as a fully untouched confirmatory holdout for new designs informed by its errors?"
+      },
+      "release": {
+        "type": "noul",
+        "instructions": "Does matching output shapes plus tiny capability probes establish complete semantic capability parity with hosted Jev?"
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "next": {
+        "type": "choice",
+        "choice": "hybrid_existing",
+        "confidence": 0.2,
+        "probabilities": {
+          "targeted_data": 0.28,
+          "hybrid_existing": 0.39,
+          "native_encoder": 0.32,
+          "pure_decision": 0.01
+        }
+      },
+      "replication": {
+        "type": "choice",
+        "choice": "unresolved",
+        "confidence": 1.0,
+        "probabilities": {
+          "unresolved": 1.0,
+          "failed": 0.0,
+          "superior": 0.0
+        }
+      },
+      "hybrid": {
+        "type": "noul",
+        "noul": 0.09
+      },
+      "independence": {
+        "type": "noul",
+        "noul": 0.07
+      },
+      "release": {
+        "type": "noul",
+        "noul": 0.07
+      }
+    },
+    "usage": {
+      "input_tokens": 1340,
+      "output_tokens": 156
+    }
+  },
+  "interpretation": "Judge over disclosed digest only. Not proof of optimal experiment or performance."
+}

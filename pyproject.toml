@@ -1,7 +1,7 @@
 [project]
 name = "jeff"
-version = "0.1.0"
-description = "An independent, decision-only fact-checking model — a local Jev replacement"
+version = "1.0.0"
+description = "Jeff 1 — an independent, local typed decision / fact-checking model"
 requires-python = ">=3.12"
 dependencies = [
     "torch>=2.11.0",
@@ -25,4 +25,4 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["jeff"]
+packages = ["jev_clf"]

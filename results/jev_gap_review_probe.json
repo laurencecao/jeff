@@ -1,0 +1,42 @@
+{
+  "request": {
+    "model": "jev-1.13.0",
+    "state": "A fair coin was flipped once. The result is hidden and neither side has been observed. Separately, 2 + 2 = 4.",
+    "questions": {
+      "hidden_heads": {
+        "type": "noul",
+        "instructions": "Did the hidden coin flip land heads?"
+      },
+      "arithmetic": {
+        "type": "choice",
+        "instructions": "What is 2 + 2?",
+        "criteria": {
+          "four": "4",
+          "five": "5"
+        }
+      }
+    }
+  },
+  "response": {
+    "model": "jev-1.13.0",
+    "answers": {
+      "hidden_heads": {
+        "type": "noul",
+        "noul": 0.47
+      },
+      "arithmetic": {
+        "type": "choice",
+        "choice": "four",
+        "confidence": 1.0,
+        "probabilities": {
+          "five": 0.0,
+          "four": 1.0
+        }
+      }
+    },
+    "usage": {
+      "input_tokens": 354,
+      "output_tokens": 50
+    }
+  }
+}

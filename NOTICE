@@ -1,0 +1,13 @@
+Jeff 1
+Copyright 2026 Gestalt-Lab contributors
+
+Licensed under the Apache License, Version 2.0.
+See LICENSE.
+
+This product is a LoRA adapter on Qwen/Qwen3-4B-Instruct-2507, which is
+licensed Apache 2.0 by the Qwen team. See:
+https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507
+
+Jeff is an independent open-source project. It is not affiliated with
+TypeSafe AI. "Jev" and "TypeSafe" are used only to describe API
+compatibility and a measured comparison.

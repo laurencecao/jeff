@@ -1,0 +1,37 @@
+[
+  {
+    "url": "https://github.com/featherless-ai/simple-jev/tree/main/RFDT",
+    "finding": "Selected-candidate soft cross entropy, allowed-label mask, shared source/context disjointness, model native answer-token distributions. Upstream baseline, not a novel Jeff invention.",
+    "status": "primary source read"
+  },
+  {
+    "url": "https://aclanthology.org/2022.tacl-1.43/",
+    "finding": "Fact Checking with Insufficient Evidence: evidence omission counterfactual augmentation motivates targeted NEI data.",
+    "status": "primary source read"
+  },
+  {
+    "url": "https://arxiv.org/html/2605.26663v2",
+    "finding": "Evidence Absence Is Not Evidence Insufficiency: construction-dependent NEI results caution against empty/placeholder negatives.",
+    "status": "primary source read; preprint"
+  },
+  {
+    "url": "https://proceedings.mlr.press/v70/guo17a.html",
+    "finding": "Posthoc temperature scaling calibrates confidence, not generally argmax accuracy; independent fit split required.",
+    "status": "primary source read"
+  },
+  {
+    "url": "https://arxiv.org/abs/1905.01969",
+    "finding": "Poly-encoders offer shared-encoding interaction between bi- and cross-encoders; architecture precedent.",
+    "status": "primary source abstract read"
+  },
+  {
+    "url": "https://arxiv.org/abs/2412.13663",
+    "finding": "ModernBERT is an encoder baseline worth comparing, not evidence for Jeff improvement by substitution.",
+    "status": "primary source abstract read"
+  },
+  {
+    "url": "https://www.typesafe.ai/",
+    "finding": "RLCD named Reinforcement Learning for Calibrated Decisions; public marketing does not disclose reproducible algorithm. No replication claim.",
+    "status": "primary source read"
+  }
+]

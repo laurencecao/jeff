@@ -1,56 +1,181 @@
-# jeff — an independent, decision-only fact-checking model
+# Jeff 1
 
-Our own **Jev replacement**. It is not a wrapper around TypeSafe's API and not a
-fine-tuned chat model: it is a **text-conditioned classifier** that takes a
-claim plus its retrieved evidence and returns calibrated probabilities over
-`supported` / `refuted` / `not_enough_info`.
+An open-source, locally runnable typed decision model.
 
-## What it is
+Jeff takes a **state** (a claim and its evidence, or any other structured
+input) plus **typed questions**, and returns probability distributions
+over the labels you declared. It speaks the same Choice / Noul / Score
+shape as TypeSafe Jev, but the weights run on your machine.
 
-- The label set and each label's natural-language definition arrive **in the
-  prompt at call time**, so a differently-worded question or a different
-  *number* of labels works without retraining.
-- The classification is read out of a real language model's **own next-token
-  distribution**, restricted to the label tokens. No head is bolted on.
-- **One forward pass** — no autoregressive loop, no iterative denoising (so it
-  is not a diffusion LM).
+- Code: [github.com/Gestalt-Lab/jeff](https://github.com/Gestalt-Lab/jeff)
+- Weights: [huggingface.co/GestaltLabs/Jeff-1](https://huggingface.co/GestaltLabs/Jeff-1)
+- License: Apache 2.0
+- Agent entrypoint: [`AGENTS.md`](AGENTS.md)
 
-## Result (test split, n=199, human labels)
+Jeff is independent. It is not affiliated with TypeSafe AI.
 
-| model | accuracy | macro-F1 | ECE |
-|---|---|---|---|
-| live Jev 1.13.0 (hosted) | 0.799 | 0.791 | 0.114 |
-| **this model: Qwen2.5-1.5B-Instruct + LoRA** | **0.759** | 0.738 | **0.111** |
-| zero-shot NLI cross-encoder | 0.668 | 0.658 | 0.277 |
-| previous approach (MiniLM encoder + 70k head) | 0.493 | 0.437 | 0.053 |
+## What
 
-Accuracy and agreement-with-Jev are reported **separately** and are never
-averaged: a model can imitate the teacher faithfully while being wrong.
+Jeff 1 is **Qwen3-4B-Instruct-2507 + a rank-16 LoRA**. There is no
+bolted-on classification head. The label set and each label's wording
+arrive in the prompt at call time. The answer is read from the model's
+own next-token distribution, restricted to those labels.
+
+Three primitives:
+
+| type | returns |
+|---|---|
+| `choice` | one label from a caller-supplied set, plus a distribution |
+| `noul` | P(yes) for a presence / yes-no question |
+| `score` | a distribution over ordered levels, plus an expected score |
+
+It is a classifier, not a chat model. It does not generate JSON, does
+not browse the web, and does not check claims against anything except
+the evidence you passed in.
+
+## Why
+
+Hosted decision APIs are fast and closed. If you want to inspect the
+weights, run offline, or point an agent at a repo instead of a vendor,
+you need a local model with a typed contract.
+
+Jeff exists so that “is this claim supported by *this* evidence?” is a
+function call, not a paragraph of model prose you then have to parse.
+
+## Why it matters
+
+- **Open weights.** The adapter is Apache 2.0; the base model is Apache
+  2.0. You can fine-tune, audit, or serve it without an API key.
+- **Typed output.** Downstream code gets distributions that sum to 1,
+  not free text.
+- **Call-time schemas.** New label wording does not require a retrain.
+- **Honest comparison.** We measured Jeff and live Jev 1.13.0 on the
+  **same 9,730 human-labelled rows**. Jeff is slightly less accurate and
+  better calibrated under one shared confidence definition. That gap is
+  documented, not spun.
+
+## Results
+
+Canonical recompute: `results/researchmax_gap_audit.md`.
+Argmax is insertion order. Confidence for ECE is `max(class probability)`
+for **both** models.
+
+| model | n | accuracy | macro-F1 | Brier | ECE (max-prob, 10-bin) |
+|---|---:|---:|---:|---:|---:|
+| **Jeff 1** (`lora_4b_multi`) | 9,730 | 0.8183 (7,962) | 0.7789 | 0.2839 | **0.0807** |
+| live Jev 1.13.0 | 9,730 | **0.8283** (8,059) | 0.7994 | **0.2750** | 0.0932 |
+
+Paired, same rows: Jev-only correct 594, Jeff-only 497. Exact McNemar
+p = 0.0036. Bootstrap 95% CI on (Jev − Jeff) accuracy [+0.0033, +0.0165].
+Row independence is **not** established (shared sources/groups).
+
+Jev's own stored `confidence` ECE is 0.0790. That is a **different
+statistic** (it can differ from max-prob by up to 0.33). Do not compare
+it to Jeff's 0.0807.
+
+The 199-row val split is a smoke test. Jeff 0.7839 vs Jev 0.7688 there
+is 3 rows (McNemar p = 0.59). Do not quote it as a lead. That val number
+is also a **different adapter** (`lora_4b`, Choice-only). The released
+model is `lora_4b_multi`.
+
+## How to use
+
+```bash
+git clone https://github.com/Gestalt-Lab/jeff
+cd jeff
+uv sync
+```
+
+Python (downloads `GestaltLabs/Jeff-1` if the local adapter is absent):
+
+```python
+from jev_clf.client import SystemOneClient, Choice, Noul, Score
+
+client = SystemOneClient()  # Qwen3-4B + Jeff-1 LoRA
+
+result = client.system_one(
+    {
+        "claim": "The new training program made participants both faster and more accurate.",
+        "evidence": [
+            "New program mean time 42s vs standard 55s.",
+            "Both groups scored 91% correct.",
+        ],
+    },
+    {
+        "verdict": Choice(
+            instructions="Verdict from the evidence only.",
+            criteria={
+                "supported": "The passages guarantee the claim.",
+                "refuted": "The passages guarantee the claim is false.",
+                "not_enough_info": "The evidence is silent or mixed.",
+            },
+        ),
+        "has_number": Noul(instructions="Does the evidence contain a number?"),
+        "strength": Score(
+            instructions="How strongly does the evidence settle the claim?",
+            criteria=["none", "weak", "moderate", "strong"],
+        ),
+    },
+)
+print(result.choices["verdict"].choice, result.choices["verdict"].probabilities)
+```
+
+HTTP:
+
+```bash
+uv run python -m scripts.jev_clf_server   # http://127.0.0.1:8079
+# POST /v1/systemone   GET /   GET /v1/models   GET /health
+```
+
+Direct PEFT load:
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
+
+base = "Qwen/Qwen3-4B-Instruct-2507"
+tok = AutoTokenizer.from_pretrained(base)
+model = AutoModelForCausalLM.from_pretrained(base, dtype="bfloat16")
+model = PeftModel.from_pretrained(model, "GestaltLabs/Jeff-1")
+```
+
+Needs a GPU or Apple Silicon with enough memory for a 4B instruct model
+plus a 47 MB LoRA (`adapter_model.safetensors` SHA256
+`13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a`).
+
+## Known issues
+
+These ship with Jeff 1. They are not surprises for a later version.
+
+1. **Over-claiming.** Jeff answers `supported` for 12.3% of gold-refuted
+   rows (Jev 6.2%) and 24.4% of gold-NEI rows (Jev 14.3%). Conjunctions
+   with one true half are a typical failure.
+2. **`not_enough_info` on single-passage rows** is the whole accuracy
+   gap. Multi-passage Climate-FEVER is a Jeff win (0.669 vs 0.591).
+3. **Serial questions.** One forward pass per question. Jev is roughly
+   flat as question count grows; Jeff is not.
+4. **Score readout.** Levels `" 0"`…`" 3"` share a first token, so Score
+   uses whole-sequence scoring (extra passes).
+5. **Probes are not parity.** Jaggedness 8/9 vs Jev 9/9. Conjunction 5/9
+   vs 9/9. API shape works; that is not complete semantic parity.
+6. **Do not use** `lora_merged` or unvalidated soft-distillation
+   adapters.
+7. **Scale is not a future holdout.** It has already informed error
+   analysis and threshold searches.
+
+Full write-up: [`RELEASE_JEFF1.md`](RELEASE_JEFF1.md),
+[`MODEL_CARD_JEFF1.md`](MODEL_CARD_JEFF1.md),
+[`PROVENANCE.md`](PROVENANCE.md).
 
 ## Layout
 
 | path | what |
 |---|---|
-| `jeff/schema.py` | frozen contract: questions, `DecisionRow`, `PredictionRow` |
-| `jeff/lm.py` | label readout from a language model |
-| `jeff/jev.py` | live Jev teacher client (resumable cache) |
-| `jeff/data.py` | FEVER / VitaminC / SciFact / Climate-FEVER loaders |
-| `scripts/jeff_autoresearch.py` | the metric the loop optimises |
-| `scripts/jeff_lora_train.py` | LoRA fine-tune |
-| `scripts/jeff_lm_eval.py` | accuracy + agreement evaluation |
-| `configs/jeff_infer.yaml` | **the loop's editable decision rule** |
-| `results/jeff_findings.md` | full write-up, limitations included |
-| `CONTRACTS_JEV_CLF.md` | cross-slice interface contract |
+| `jev_clf/` | schema, client, readout, eval |
+| `scripts/jev_clf_server.py` | local HTTP API (port **8079**) |
+| `scripts/audit_decision_results.py` | fail-closed paired metrics |
+| `data/factcheck/` | gold labels and saved predictions |
+| `artifacts/` | gitignored; get weights from Hugging Face |
 
-## Run
-
-```bash
-uv run python -m scripts.jeff_lm_eval --model Qwen/Qwen2.5-1.5B-Instruct \
-  --adapter artifacts/jeff/lora_lm --split test --readout first_token \
-  --dtype bfloat16 --out results/lm_eval_lora_test.json
-
-bash autoresearch.sh        # the loop metric (val only)
-```
-
-Data note: the large distilled/SFT JSONL and the raw HF cache are gitignored
-(they are rebuilt from live Jev calls, ~$0.20 of teacher tokens).
+A separate diffusion-head project (d-Jeff) is planned. This repository
+is the released one-shot classifier.

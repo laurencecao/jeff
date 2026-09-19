@@ -50,7 +50,9 @@ from jev_clf import schema as S  # noqa: E402
 from scripts.jev_clf_lm_eval import build_inputs  # noqa: E402
 
 DEFAULT_BASE = "Qwen/Qwen3-4B-Instruct-2507"
-DEFAULT_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b")
+HF_ADAPTER = "GestaltLabs/Jeff-1"
+_LOCAL_MULTI = ROOT / "artifacts/jev_clf/lora_4b_multi"
+DEFAULT_ADAPTER = str(_LOCAL_MULTI) if _LOCAL_MULTI.exists() else HF_ADAPTER
 
 
 # --------------------------------------------------------------------------

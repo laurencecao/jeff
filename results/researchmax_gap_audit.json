@@ -1,0 +1,616 @@
+{
+  "arms": {
+    "jev_large": {
+      "accuracy": 0.8282631038026721,
+      "accuracy_alt_sorted_tiebreak": 0.828365878725591,
+      "brier_multiclass": 0.27495005813635853,
+      "by_passage_count": {
+        "0": {
+          "accuracy": 1.0,
+          "n": 214,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 214,
+              "recall": 1.0
+            }
+          }
+        },
+        "1": {
+          "accuracy": 0.8477380539164642,
+          "n": 8643,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 1570,
+              "recall": 0.6554140127388535
+            },
+            "refuted": {
+              "n": 2443,
+              "recall": 0.8080229226361032
+            },
+            "supported": {
+              "n": 4630,
+              "recall": 0.9339092872570195
+            }
+          }
+        },
+        "2": {
+          "accuracy": 0.9090909090909091,
+          "n": 11,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 11,
+              "recall": 0.9090909090909091
+            }
+          }
+        },
+        "3": {
+          "accuracy": 0.0,
+          "n": 2,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 2,
+              "recall": 0.0
+            }
+          }
+        },
+        "4": {
+          "accuracy": 0.0,
+          "n": 1,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 1,
+              "recall": 0.0
+            }
+          }
+        },
+        "5": {
+          "accuracy": 0.5913853317811408,
+          "n": 859,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 308,
+              "recall": 0.7987012987012987
+            },
+            "refuted": {
+              "n": 150,
+              "recall": 0.7533333333333333
+            },
+            "supported": {
+              "n": 401,
+              "recall": 0.371571072319202
+            }
+          }
+        }
+      },
+      "by_source": {
+        "climate_fever": {
+          "accuracy": 0.5913853317811408,
+          "n": 859,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 308,
+              "recall": 0.7987012987012987
+            },
+            "refuted": {
+              "n": 150,
+              "recall": 0.7533333333333333
+            },
+            "supported": {
+              "n": 401,
+              "recall": 0.371571072319202
+            }
+          }
+        },
+        "fever": {
+          "accuracy": 0.8672634271099744,
+          "n": 3910,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 748,
+              "recall": 0.5641711229946524
+            },
+            "refuted": {
+              "n": 853,
+              "recall": 0.9015240328253223
+            },
+            "supported": {
+              "n": 2309,
+              "recall": 0.9527934170636639
+            }
+          }
+        },
+        "scifact": {
+          "accuracy": 0.8615071283095723,
+          "n": 982,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 482,
+              "recall": 0.8983402489626556
+            },
+            "refuted": {
+              "n": 168,
+              "recall": 0.8869047619047619
+            },
+            "supported": {
+              "n": 332,
+              "recall": 0.7951807228915663
+            }
+          }
+        },
+        "vitaminc": {
+          "accuracy": 0.8328725810505152,
+          "n": 3979,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 568,
+              "recall": 0.7007042253521126
+            },
+            "refuted": {
+              "n": 1422,
+              "recall": 0.7426160337552743
+            },
+            "supported": {
+              "n": 1989,
+              "recall": 0.9351432880844646
+            }
+          }
+        }
+      },
+      "confusion": {
+        "not_enough_info": {
+          "not_enough_info": 1499,
+          "refuted": 306,
+          "supported": 301
+        },
+        "refuted": {
+          "not_enough_info": 345,
+          "refuted": 2087,
+          "supported": 161
+        },
+        "supported": {
+          "not_enough_info": 406,
+          "refuted": 152,
+          "supported": 4473
+        }
+      },
+      "ece": {
+        "adaptive_equal_count_10bin": 0.09320549793931095,
+        "classwise_ovr_10bin": {
+          "not_enough_info": 0.07644969738494917,
+          "refuted": 0.05389900028029525,
+          "supported": 0.06334681864897687
+        },
+        "classwise_ovr_macro": 0.06456517210474043,
+        "stored_confidence_10bin": 0.07895580678314494,
+        "top_label_10bin": 0.09320549793931078
+      },
+      "macro_f1": 0.7994254905106022,
+      "n": 9730,
+      "n_correct": 8059,
+      "n_exact_argmax_ties": 12,
+      "nll": 1.6437882014399032,
+      "nll_epsilon": 1e-15,
+      "per_label": {
+        "not_enough_info": {
+          "f1": 0.6882460973370064,
+          "precision": 0.6662222222222223,
+          "recall": 0.7117758784425451,
+          "support": 2106
+        },
+        "refuted": {
+          "f1": 0.8123783573374854,
+          "precision": 0.8200392927308447,
+          "recall": 0.8048592364057077,
+          "support": 2593
+        },
+        "supported": {
+          "f1": 0.8976520168573149,
+          "precision": 0.9063829787234042,
+          "recall": 0.889087656529517,
+          "support": 5031
+        }
+      },
+      "selective_risk": {
+        "0.5": {
+          "accuracy": 0.9431504145282273,
+          "confidence_threshold": 0.99,
+          "coverage": 0.5206577595066804,
+          "n_selected": 5066,
+          "risk": 0.05684958547177266,
+          "target_coverage": 0.5
+        },
+        "0.8": {
+          "accuracy": 0.8935678520991142,
+          "confidence_threshold": 0.79,
+          "coverage": 0.800513874614594,
+          "n_selected": 7789,
+          "risk": 0.10643214790088584,
+          "target_coverage": 0.8
+        },
+        "0.9": {
+          "accuracy": 0.8645477329687856,
+          "confidence_threshold": 0.54,
+          "coverage": 0.902158273381295,
+          "n_selected": 8778,
+          "risk": 0.13545226703121438,
+          "target_coverage": 0.9
+        }
+      },
+      "tiebreak_policy": "insertion order of the probs object (max(probs.items(), key=kv[1])), matching the existing eval; sorted-label argmax reported separately as accuracy_alt_sorted_tiebreak"
+    },
+    "ours_large": {
+      "accuracy": 0.8182939362795478,
+      "accuracy_alt_sorted_tiebreak": 0.8179856115107914,
+      "brier_multiclass": 0.2839242452275375,
+      "by_passage_count": {
+        "0": {
+          "accuracy": 1.0,
+          "n": 214,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 214,
+              "recall": 1.0
+            }
+          }
+        },
+        "1": {
+          "accuracy": 0.8285317598056231,
+          "n": 8643,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 1570,
+              "recall": 0.5229299363057325
+            },
+            "refuted": {
+              "n": 2443,
+              "recall": 0.80065493246009
+            },
+            "supported": {
+              "n": 4630,
+              "recall": 0.9468682505399568
+            }
+          }
+        },
+        "2": {
+          "accuracy": 0.9090909090909091,
+          "n": 11,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 11,
+              "recall": 0.9090909090909091
+            }
+          }
+        },
+        "3": {
+          "accuracy": 1.0,
+          "n": 2,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 2,
+              "recall": 1.0
+            }
+          }
+        },
+        "4": {
+          "accuracy": 0.0,
+          "n": 1,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 1,
+              "recall": 0.0
+            }
+          }
+        },
+        "5": {
+          "accuracy": 0.6693830034924331,
+          "n": 859,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 308,
+              "recall": 0.5551948051948052
+            },
+            "refuted": {
+              "n": 150,
+              "recall": 0.6866666666666666
+            },
+            "supported": {
+              "n": 401,
+              "recall": 0.7506234413965087
+            }
+          }
+        }
+      },
+      "by_source": {
+        "climate_fever": {
+          "accuracy": 0.6693830034924331,
+          "n": 859,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 308,
+              "recall": 0.5551948051948052
+            },
+            "refuted": {
+              "n": 150,
+              "recall": 0.6866666666666666
+            },
+            "supported": {
+              "n": 401,
+              "recall": 0.7506234413965087
+            }
+          }
+        },
+        "fever": {
+          "accuracy": 0.8421994884910486,
+          "n": 3910,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 748,
+              "recall": 0.4344919786096257
+            },
+            "refuted": {
+              "n": 853,
+              "recall": 0.876905041031653
+            },
+            "supported": {
+              "n": 2309,
+              "recall": 0.9614551754006063
+            }
+          }
+        },
+        "scifact": {
+          "accuracy": 0.8869653767820774,
+          "n": 982,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 482,
+              "recall": 0.8962655601659751
+            },
+            "refuted": {
+              "n": 168,
+              "recall": 0.8273809523809523
+            },
+            "supported": {
+              "n": 332,
+              "recall": 0.9036144578313253
+            }
+          }
+        },
+        "vitaminc": {
+          "accuracy": 0.81000251319427,
+          "n": 3979,
+          "recall_by_class": {
+            "not_enough_info": {
+              "n": 568,
+              "recall": 0.5105633802816901
+            },
+            "refuted": {
+              "n": 1422,
+              "recall": 0.7517580872011251
+            },
+            "supported": {
+              "n": 1989,
+              "recall": 0.9371543489190548
+            }
+          }
+        }
+      },
+      "confusion": {
+        "not_enough_info": {
+          "not_enough_info": 1218,
+          "refuted": 375,
+          "supported": 513
+        },
+        "refuted": {
+          "not_enough_info": 216,
+          "refuted": 2059,
+          "supported": 318
+        },
+        "supported": {
+          "not_enough_info": 164,
+          "refuted": 182,
+          "supported": 4685
+        }
+      },
+      "ece": {
+        "adaptive_equal_count_10bin": 0.079071218795301,
+        "classwise_ovr_10bin": {
+          "not_enough_info": 0.05488801372389693,
+          "refuted": 0.059527718420640585,
+          "supported": 0.05330769650603471
+        },
+        "classwise_ovr_macro": 0.055907809550190736,
+        "stored_confidence_10bin": 0.08074845058761182,
+        "top_label_10bin": 0.08074845058761182
+      },
+      "macro_f1": 0.7788754937241196,
+      "n": 9730,
+      "n_correct": 7962,
+      "n_exact_argmax_ties": 71,
+      "nll": 0.5532185130625216,
+      "nll_epsilon": 1e-15,
+      "per_label": {
+        "not_enough_info": {
+          "f1": 0.6576673866090713,
+          "precision": 0.7622027534418022,
+          "recall": 0.5783475783475783,
+          "support": 2106
+        },
+        "refuted": {
+          "f1": 0.79055480898445,
+          "precision": 0.7870795107033639,
+          "recall": 0.7940609332819129,
+          "support": 2593
+        },
+        "supported": {
+          "f1": 0.8884042855788375,
+          "precision": 0.8493473531544597,
+          "recall": 0.9312263963426755,
+          "support": 5031
+        }
+      },
+      "selective_risk": {
+        "0.5": {
+          "accuracy": 0.9458905513424882,
+          "confidence_threshold": 0.9764977693557739,
+          "coverage": 0.5014388489208633,
+          "n_selected": 4879,
+          "risk": 0.05410944865751177,
+          "target_coverage": 0.5
+        },
+        "0.8": {
+          "accuracy": 0.8861767728674204,
+          "confidence_threshold": 0.8079490661621094,
+          "coverage": 0.8,
+          "n_selected": 7784,
+          "risk": 0.11382322713257964,
+          "target_coverage": 0.8
+        },
+        "0.9": {
+          "accuracy": 0.8540762731217173,
+          "confidence_threshold": 0.6390628814697266,
+          "coverage": 0.9001027749229188,
+          "n_selected": 8758,
+          "risk": 0.1459237268782827,
+          "target_coverage": 0.9
+        }
+      },
+      "tiebreak_policy": "insertion order of the probs object (max(probs.items(), key=kv[1])), matching the existing eval; sorted-label argmax reported separately as accuracy_alt_sorted_tiebreak"
+    }
+  },
+  "audit": "researchmax_gap_audit",
+  "counts": {
+    "gold_label_counts": {
+      "not_enough_info": 2106,
+      "refuted": 2593,
+      "supported": 5031
+    },
+    "n_rows": 9730
+  },
+  "formulas": {
+    "accuracy": "mean(argmax(probs) == gold_label)",
+    "bootstrap": "6000 paired row resamples, seed 11, percentile 95% CI on acc(B)-acc(A)",
+    "brier_multiclass": "mean over rows of sum_c (p_c - y_c)^2",
+    "confidence": "stored confidence required, finite, within [0,1] +/- 1e-09, clipped for binning",
+    "ece_adaptive_equal_count_10bin": "10 equal-count bins over ascending stable rank of max(probs); ties keep input order and may straddle a boundary",
+    "ece_classwise_ovr_10bin": "per class c, 10-bin ECE of p_c vs 1[gold==c]; macro = mean over classes",
+    "ece_stored_confidence_10bin": "same binning over the stored 'confidence' field, reported separately",
+    "ece_top_label_10bin": "10 equal-width bins on [0,1] over max(probs); sum_b (n_b/N) * |acc_b - conf_b|",
+    "gold": "labels[qid] must be finite, nonnegative, sum to 1 within 1e-06, and be exactly one-hot",
+    "key": "(row_id, question_id); pred keys for the audited question must equal gold keys exactly; duplicates in either file abort",
+    "labels": "sorted union taken from the first gold row's labels[question]; every gold/pred probability map must match it exactly",
+    "macro_f1": "mean over classes of 2PR/(P+R); empty class contributes 0",
+    "mcnemar": "exact two-sided binomtest on discordant pairs (b_only_correct, a_only_correct) on identical rows",
+    "nll": "mean(-log(max(p_gold, 1e-15)))",
+    "probs": "finite, nonnegative, sum to 1 within 1e-06; top-1 = max(probs.items(), key=kv[1]) so exact ties resolve to the FIRST INSERTED key (existing eval policy); n_exact_argmax_ties and accuracy_alt_sorted_tiebreak report tie prevalence and the sorted-order counterfactual",
+    "selective_risk": "for target c: k=ceil(c*N), tau=kth-largest stored confidence, keep ALL rows with conf>=tau (tie group fully included, so realized coverage >= c); risk = 1 - accuracy on kept rows"
+  },
+  "generated_at": "2026-09-19T13:36:17.083307+00:00",
+  "historical_summaries": {
+    "files": {
+      "/Users/djl/Desktop/jev_clf/results/jev_large.json": {
+        "accuracy": 0.8282631038026721,
+        "brier": 0.274950058136358,
+        "confusion": {
+          "not_enough_info": {
+            "not_enough_info": 1499,
+            "refuted": 306,
+            "supported": 301
+          },
+          "refuted": {
+            "not_enough_info": 345,
+            "refuted": 2087,
+            "supported": 161
+          },
+          "supported": {
+            "not_enough_info": 406,
+            "refuted": 152,
+            "supported": 4473
+          }
+        },
+        "ece": 0.07895580678314494,
+        "labels": [
+          "not_enough_info",
+          "refuted",
+          "supported"
+        ],
+        "macro_f1": 0.7994254905106022,
+        "n": 9730,
+        "per_label": {
+          "not_enough_info": {
+            "f1": 0.6882460973370064,
+            "precision": 0.6662222222222223,
+            "recall": 0.7117758784425451,
+            "support": 2106
+          },
+          "refuted": {
+            "f1": 0.8123783573374854,
+            "precision": 0.8200392927308447,
+            "recall": 0.8048592364057077,
+            "support": 2593
+          },
+          "supported": {
+            "f1": 0.8976520168573149,
+            "precision": 0.9063829787234042,
+            "recall": 0.889087656529517,
+            "support": 5031
+          }
+        }
+      }
+    },
+    "note": "verbatim copies of previously published summaries; NOT recomputed here and kept separate from the audited numbers above"
+  },
+  "inputs": {
+    "gold": {
+      "path": "/Users/djl/Desktop/jev_clf/data/factcheck/eval_large.jsonl",
+      "rows": 9730,
+      "sha256": "7e46efac6d6adf50ec30338df7f4c4897bb64452d840e8a29d4c0915c5e91539"
+    },
+    "predictions": {
+      "jev_large": {
+        "path": "/Users/djl/Desktop/jev_clf/data/factcheck/preds_jev_large.jsonl",
+        "rows": 9730,
+        "sha256": "1d7b22a8d1c43afd5e25706eaff50960a167dc040325c6574ae87a9b68336684"
+      },
+      "ours_large": {
+        "path": "/Users/djl/Desktop/jev_clf/data/factcheck/preds_ours_large.jsonl",
+        "rows": 9730,
+        "sha256": "36488db0effedbfc0b13dd75a3aae56435aaa269f9771e6e6e41a73bbd958233"
+      }
+    }
+  },
+  "labels": [
+    "not_enough_info",
+    "refuted",
+    "supported"
+  ],
+  "paired": {
+    "a": "ours_large",
+    "accuracy_a": 0.8182939362795478,
+    "accuracy_b": 0.8282631038026721,
+    "b": "jev_large",
+    "bootstrap": {
+      "ci95": [
+        0.00328879753340185,
+        0.016546762589928057
+      ],
+      "resamples": 6000,
+      "seed": 11,
+      "statistic": "mean(b_ok - a_ok) over paired row resamples"
+    },
+    "delta_b_minus_a": 0.009969167523124267,
+    "mcnemar": {
+      "a_only_correct": 497,
+      "b_only_correct": 594,
+      "discordant": 1091,
+      "p_exact_two_sided": 0.003636540511271273,
+      "test": "scipy.stats.binomtest(min(b,c), b+c, 0.5), two-sided"
+    },
+    "n": 9730
+  },
+  "question_id": "verdict",
+  "versions": {
+    "numpy": "2.5.3",
+    "python": "3.12.13",
+    "scipy": "1.18.1"
+  }
+}

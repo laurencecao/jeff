@@ -13,10 +13,14 @@ not_enough_info" or any caller-chosen label set), plus generic typed primitives
 (2–5 label choices, yes/no presence checks, ordinal score levels with per-level
 probability distributions).
 
-**Repository state:** this card describes the repository at commit `527f2a4`.
-All headline figures are reported to 4 decimal places and come from the two
-evaluation splits described in the *Evaluation* section; there are no
-latency, parameter-count, or training-compute claims in this card.
+**Publication:** code [github.com/Gestalt-Lab/jeff](https://github.com/Gestalt-Lab/jeff);
+weights [huggingface.co/GestaltLabs/Jeff-1](https://huggingface.co/GestaltLabs/Jeff-1);
+license Apache 2.0 (`LICENSE`, `NOTICE`). Agent entrypoint: `AGENTS.md`.
+Headline scale numbers are the insertion-order recompute in
+`results/researchmax_gap_audit.md` (Jeff 7,962/9,730 vs Jev 8,059/9,730).
+This card no longer pins commit `527f2a4` as the release SHA — use `git rev-parse HEAD`
+after the release commit. Adapter SHA256
+`13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a`.
 
 ---
 
@@ -26,8 +30,8 @@ latency, parameter-count, or training-compute claims in this card.
 |---|---|
 | Base model | `Qwen/Qwen3-4B-Instruct-2507` (Apache 2.0, per `https://huggingface.co/api/models/Qwen/Qwen3-4B-Instruct-2507`) |
 | Adapter | LoRA, `r=16`, target modules `q_proj, k_proj, v_proj, o_proj` (per `artifacts/jev_clf/lora_4b_multi/adapter_config.json`; `artifacts/jev_clf/lora_4b/adapter_config.json` has the same shape) |
-| Decoding | local generation on MPS (Apple Silicon) via a thin server in `scripts/jev_clf_server.py` |
-| Adapter license | **Not specified in this repository** — no `LICENSE` file is present at the repo root. The base model's Apache 2.0 license is inherited at the Hugging Face level; the LoRA weights are committed under `artifacts/jev_clf/` without a license attribution. |
+| Decoding | local inference (CUDA or Apple Silicon MPS) via `scripts/jev_clf_server.py` |
+| Adapter license | Apache 2.0 (this repository `LICENSE`; same terms on Hugging Face) |
 
 The model is a *text-conditioned* judge, not a fixed-output classifier: labels
 and their wording are supplied at call time, and the model is not tied to the
