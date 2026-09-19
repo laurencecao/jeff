@@ -316,7 +316,7 @@ def main() -> None:
         p = torch.softmax(z, dim=-1)
         gold = torch.tensor([0])
 
-        l_r, d_r = exact_reward_loss(torch.log_softmax(z, dim=-1), gold)
+        l_r, d_r = exact_reward_loss(torch.log_softmax(z, dim=-1), gold=gold)
         g_r = torch.autograd.grad(l_r, z, retain_graph=True)[0][0, 0].abs()
 
         l_c = torch.nn.functional.cross_entropy(z, gold)
@@ -329,12 +329,12 @@ def main() -> None:
     zlo = torch.zeros(1, L, requires_grad=True)
     with torch.no_grad():
         zlo[0, 0] = -20.0  # p_gold ~ 2e-9
-    l_rlo, _ = exact_reward_loss(torch.log_softmax(zlo, dim=-1), torch.tensor([0]))
+    l_rlo, _ = exact_reward_loss(torch.log_softmax(zlo, dim=-1), gold=torch.tensor([0]))
     glo = float(torch.autograd.grad(l_rlo, zlo)[0][0, 0].abs())
     zhi = torch.zeros(1, L, requires_grad=True)
     with torch.no_grad():
         zhi[0, 0] = 20.0  # p_gold ~ 1
-    l_rhi, _ = exact_reward_loss(torch.log_softmax(zhi, dim=-1), torch.tensor([0]))
+    l_rhi, _ = exact_reward_loss(torch.log_softmax(zhi, dim=-1), gold=torch.tensor([0]))
     ghi = float(torch.autograd.grad(l_rhi, zhi)[0][0, 0].abs())
     print(f"\n  reward |grad| at p_gold~0 (confidently wrong): {glo:.3e}")
     print(f"  reward |grad| at p_gold~1 (confidently right): {ghi:.3e}")
@@ -343,6 +343,38 @@ def main() -> None:
     else:
         print("  FAIL - saturation shape differs from the documented analysis")
         ok = False
+
+    print("\n=== 6b. soft teacher target == expectation over the teacher's own q ===")
+    lp_q = torch.log_softmax(torch.randn(5, N_ACTIONS), dim=-1)
+    q = torch.softmax(torch.randn(5, N_ACTIONS), dim=-1)   # a soft teacher target
+    l_soft, d_soft = exact_reward_loss(lp_q, soft_target=q)
+    pi = lp_q.exp()
+    manual = -(q * pi).sum(-1).mean()          # E_q[R] computed by hand
+    print(f"  loss={float(l_soft):.6f}  manual -sum_a q(a)pi(a)={float(manual):.6f}  "
+          f"equal={abs(float(l_soft)-float(manual))<1e-6}")
+    if abs(float(l_soft) - float(manual)) > 1e-6:
+        print("  FAIL - soft-target expectation does not match the hand computation")
+        ok = False
+    else:
+        print("  PASS - teacher rows can supply E_q[R] without collapsing to argmax")
+    # a one-hot q must reproduce the hard-gold result exactly
+    hard = q.argmax(-1)
+    q_onehot = torch.nn.functional.one_hot(hard, N_ACTIONS).float()
+    l_h, _ = exact_reward_loss(lp_q, gold=hard)
+    l_oh, _ = exact_reward_loss(lp_q, soft_target=q_onehot)
+    print(f"  one-hot q ({float(l_oh):.6f}) == hard gold ({float(l_h):.6f}): "
+          f"{abs(float(l_oh)-float(l_h))<1e-6}  (they must agree)")
+    if abs(float(l_oh) - float(l_h)) > 1e-6:
+        print("  FAIL - soft and hard forms disagree on a one-hot target")
+        ok = False
+    else:
+        print("  PASS")
+    try:
+        exact_reward_loss(lp_q, soft_target=torch.randn(5, N_ACTIONS))
+        print("  FAIL - raw logits accepted as a soft target")
+        ok = False
+    except ValueError:
+        print("  PASS - unnormalized soft target rejected")
 
     print("\n=== 7. the production helper owns sampling (no caller-supplied actions) ===")
     # Sampling is an invariant of the arm, and an integer index tensor carries no

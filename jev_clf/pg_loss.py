@@ -304,10 +304,11 @@ def exact_reward_loss(
 
 def bandit_train_step(
     policy_logprobs: torch.Tensor,
-    gold: torch.Tensor,
+    gold: torch.Tensor | None = None,
     ref_logprobs: torch.Tensor | None = None,
     cfg: PGConfig | None = None,
     mode: str = "exact_reward",
+    soft_target: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     """The production training step. Owns sampling; the caller cannot inject actions.
 
@@ -329,8 +330,16 @@ def bandit_train_step(
     """
     cfg = cfg or PGConfig()
     if mode == "exact_reward":
-        loss, diag = exact_reward_loss(policy_logprobs, gold, ref_logprobs, cfg)
+        loss, diag = exact_reward_loss(
+            policy_logprobs, gold=gold, ref_logprobs=ref_logprobs, cfg=cfg,
+            soft_target=soft_target,
+        )
     elif mode == "reinforce":
+        if gold is None:
+            raise ValueError(
+                "reinforce mode needs a hard `gold`; a soft target cannot supply a "
+                "sampled-action reward"
+            )
         # Sampling happens inside the step, which is the point of this helper.
         actions = sample_actions(policy_logprobs).detach()
         rewards = (actions == gold).float()
