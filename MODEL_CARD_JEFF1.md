@@ -1,163 +1,113 @@
 # Jeff 1 — Model Card
 
-Jeff 1 is a locally runnable replacement for TypeSafe Jev 1.13.0, the hosted
-fact-checking judgment API. Given a claim plus a set of evidence passages (the
-request shape Jev clients already speak), it returns one of three typed
-judgments over whatever label set the caller supplies: a labeled **choice**, a
-presence judgment (**noul**), or a graded multi-criteria **score**. The entire
-inference stack runs on a laptop (Apple Silicon, MPS); there is no hosted
-service at inference time.
+Jeff 1 is a locally runnable, open-weight replacement for TypeSafe Jev 1.13.0,
+the hosted fact-checking judgment API. Given a claim plus evidence passages —
+or any structured state — it returns typed judgments over whatever label set
+the caller supplies: a labeled **choice**, a presence judgment (**noul**), or a
+graded multi-level **score**. Label sets and label wording are declared at call
+time; the answer is read from the model's own next-token distribution
+restricted to those labels. Inference runs entirely locally (CUDA or Apple
+Silicon MPS); no hosted service is involved.
 
-**Task:** text-conditioned fact-checking verdicts ("supported / refuted /
-not_enough_info" or any caller-chosen label set), plus generic typed primitives
-(2–5 label choices, yes/no presence checks, ordinal score levels with per-level
-probability distributions).
+- Code: [github.com/Gestalt-Lab/jeff](https://github.com/Gestalt-Lab/jeff)
+- Weights: [huggingface.co/GestaltLabs/Jeff-1](https://huggingface.co/GestaltLabs/Jeff-1)
+- License: Apache 2.0 (`LICENSE`, `NOTICE`). Jeff is independent and not
+  affiliated with TypeSafe AI.
 
-**Publication:** code [github.com/Gestalt-Lab/jeff](https://github.com/Gestalt-Lab/jeff);
-weights [huggingface.co/GestaltLabs/Jeff-1](https://huggingface.co/GestaltLabs/Jeff-1);
-license Apache 2.0 (`LICENSE`, `NOTICE`). Agent entrypoint: `AGENTS.md`.
-Headline scale numbers are the insertion-order recompute in
-`results/researchmax_gap_audit.md` (Jeff 7,962/9,730 vs Jev 8,059/9,730).
-This card no longer pins commit `527f2a4` as the release SHA — use `git rev-parse HEAD`
-after the release commit. Adapter SHA256
-`13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a`.
-
----
-
-## Model architecture / lineage
+## Model details
 
 | | |
 |---|---|
-| Base model | `Qwen/Qwen3-4B-Instruct-2507` (Apache 2.0, per `https://huggingface.co/api/models/Qwen/Qwen3-4B-Instruct-2507`) |
-| Adapter | LoRA, `r=16`, target modules `q_proj, k_proj, v_proj, o_proj` (per `artifacts/jev_clf/lora_4b_multi/adapter_config.json`; `artifacts/jev_clf/lora_4b/adapter_config.json` has the same shape) |
-| Decoding | local inference (CUDA or Apple Silicon MPS) via `scripts/jev_clf_server.py` |
-| Adapter license | Apache 2.0 (this repository `LICENSE`; same terms on Hugging Face) |
+| Base model | `Qwen/Qwen3-4B-Instruct-2507` (Apache 2.0) |
+| Released adapter | `artifacts/jev_clf/lora_4b_multi`, published as `GestaltLabs/Jeff-1` |
+| Adapter SHA256 | `13cc3805495f7e901ca3121c7a3647fc6abcfe1fdc098ddc9ab1acd74f436a6a` (`adapter_model.safetensors`) |
+| Adapter config | LoRA `r=16`, `alpha=32`, `dropout=0.05`, targets `q_proj, k_proj, v_proj, o_proj` |
+| Trainable params | 11,796,480 (0.29% of 4.03B total) |
+| Training data | 12,119 rows: 9,119 Choice + 1,800 Score + 1,200 Noul; 2 epochs |
+| Serving | `scripts/jev_clf_server.py` (local HTTP, port 8079) or direct PEFT load |
 
-The model is a *text-conditioned* judge, not a fixed-output classifier: labels
-and their wording are supplied at call time, and the model is not tied to the
-three fact-check verdicts. Capability parity with the hosted API was checked
-with one live call exercising a 2-label binary choice, a 5-label multi-word
-choice, a noul, a 3-level score, a 5-level score, and a 3-label
-supported/refuted/not_enough_info verdict.
-
-## Adapters shipped with this repository
-
-| Directory | Role | Sealed val (n=199) accuracy |
-|---|---|---|
-| `artifacts/jev_clf/lora_4b` | Choice-only champion. Trained on 9,119 Choice rows, 0 Noul / 0 Score rows (per the comment in `scripts/jev_clf_server.py`); its score output is a dead-uniform 0.25 per level. | 0.7839 |
-| `artifacts/jev_clf/lora_4b_multi` | **Demo default.** Adds 1,800 Score rows and 1,200 Noul rows to the same base (per the comment in `scripts/jev_clf_server.py`). | 0.7789 |
-
-A merged checkpoint (`artifacts/jev_clf/lora_merged`) exists in the tree but is
-unevaluated.
+Other adapter directories under `artifacts/jev_clf/` are development artifacts,
+are not part of this release, and are unevaluated for release use.
 
 ## Evaluation
 
-Two splits, both evaluated the same way (details in *How measured*):
+Headline result, from the canonical paired audit
+(`results/researchmax_gap_audit.json` / `.md`): both models scored on the same
+9,730 human-labeled rows (`data/factcheck/eval_large.jsonl`; vitaminc 3,979,
+fever 3,910, scifact 982, climate_fever 859).
 
-| Split | n | Model | Accuracy | ECE |
-|---|---|---|---|---|
-| Val (sealed) | 199 | **Jeff 1** | **0.7839** | **0.0902** |
-| Val (sealed) | 199 | live Jev 1.13.0 | 0.7688 | 0.1137 |
-| Scale (human labels) | 9,730 | **Jeff 1** | **0.8183** | **0.0807** |
-| Scale (human labels) | 9,730 | live Jev 1.13.0 | 0.8283 | 0.0932 |
+| Model | n | Accuracy | Macro-F1 | Brier | ECE (max-prob) |
+|---|---:|---:|---:|---:|---:|
+| **Jeff 1** | 9,730 | 0.8183 (7,962) | 0.7789 | 0.2839 | **0.0807** |
+| live Jev 1.13.0 | 9,730 | **0.8283** (8,059) | 0.7994 | **0.2750** | 0.0932 |
 
-The **val split (n=199) is sealed**: it is the `split='val'` subset of
-`data/factcheck/ground_truth.jsonl` (1,987 rows total: 1,589 `train`, 199 `val`,
-199 `test`), ~500 rows each from vitaminc, scifact, climate_fever, and fever.
-The 199 `split='test'` rows are a separate sealed holdout and are not the rows
-scored in the table. The **scale split (n=9,730)** is
-`data/factcheck/eval_large.jsonl`, all rows human-labeled, with source counts
-vitaminc 3,979, fever 3,910, scifact 982, climate_fever 859.
+Accuracy is exact match against the human gold label; argmax ties break by
+label insertion order. The accuracy difference is small but real: McNemar
+p = 0.0036, bootstrap 95% CI on the difference [+0.0033, +0.0165]. Jeff 1 is
+better calibrated under the shared max-class-probability ECE definition (10
+equal-width bins, population-weighted); Jev is better on Brier score.
 
-**How measured.** Accuracy is exact-match against the human gold label. Live
-Jev 1.13.0 numbers come from the hosted API scored on the *identical* rows.
-ECE is 10 equal-width, population-weighted bins with confidence = max class
-probability, computed identically for both models — which is why the two ECE
-columns are directly comparable and why Jeff 1 is better calibrated on the
-scale split (0.0807 vs 0.0932). In-repo, `results/jeff_final.md` reports the
-same val figures at 3 decimal places (0.784 / 0.090 / 0.769 / 0.114), and the
-scale figures appear in the server's `/v1/models` payload and the demo page.
+Jev additionally reports an internal confidence statistic that is a different
+quantity from max-class probability (the two disagree by up to 0.33 per row).
+Scored on that statistic Jev's ECE is 0.0790; it is not comparable to the
+max-probability column above.
 
-> Jev also reports an internal confidence statistic. Scored on that statistic,
-> Jev's ECE is 0.0790. That is a different definition than max-class
-> probability (the two can differ by up to 0.33, mean 0.040). The like-for-like
-> comparison in the table is 0.0932 vs 0.0807.
-
-Additional Jeff 1 numbers on the sealed val split: **macro-F1 0.7620,
-Brier score 0.3186, agreement-with-Jev 0.8518**.
-
-> The 199-row validation split is underpowered. Jeff 0.7839 vs Jev 0.7688 is
-> 3 rows (McNemar p = 0.59); a bootstrap 95% CI spans ±5.6 points. Those val
-> numbers also used a different, Choice-only adapter. On the 9,730-row scale
-> split Jev is ahead on accuracy (0.8283 vs 0.8183, p = 0.0033) and Jeff is
-> ahead on max-probability ECE (0.0807 vs 0.0932). A `supported` bias that
-> gains 2 rows on val loses 9 on scale, so the small split is a poor tuning
-> target.
+A separate sealed 199-row test split (`split='test'` of
+`data/factcheck/ground_truth.jsonl`) was scored with the released adapter:
+accuracy 0.7940, ECE 0.0634, versus live Jev accuracy 0.7990 on the same rows.
+At n=199, differences of a few rows are within noise; treat this split as a
+sanity check, not a ranking signal.
 
 ## Intended use
 
 - Local, offline, self-hosted fact-check verdicts over claim + evidence, using
   the Jev request/response shape so existing Jev clients can point at the local
-  server instead of the hosted API (`scripts/jev_clf_server.py`).
+  server instead of the hosted API.
 - The three typed primitives (choice / noul / score) with caller-chosen label
-  sets — e.g. triage labels, presence checks, ordinal strength grades.
-- Research and development where per-request cost and data egress to a hosted
-  service are constraints.
+  sets — triage labels, presence checks, ordinal strength grades.
+- Research and development where per-request cost or data egress to a hosted
+  service is a constraint.
 
-## Out of scope / limitations
+## Limitations
 
-- **Training data composition is not restated here** beyond what is citable in
-  the repo (Choice/Score/Noul row counts above); no training-compute figures
-  are claimed.
-- The model is text-conditioned and will produce *plausible but wrong*
-  judgments; it does not verify claims against external sources — it only
-  judges whether the supplied evidence supports the claim.
-- Latency, throughput, and maximum context were not benchmarked for this
-  release; the server's self-reported `context: 32768` in `/v1/models` is a
-  config value, not a measurement.
-- `artifacts/jev_clf/lora_merged` is unevaluated.
-
-## Known failure modes
-
-These are measured, not hypothetical — the numbers are the only ones stated
-for these failure classes.
-
-1. **Over-claiming (dominant failure).** On the scale split, Jeff 1 answers
-   "supported" for **12.3%** of gold-refuted claims and **24.4%** of
-   gold-not_enough_info claims, versus **6.2%** and **14.3%** for live Jev.
-   Jev is the more conservative judge; Jeff 1 over-claims roughly twice as
-   often on refuted rows.
-2. **Worked example of the over-claim.** Claim: *"The new training program
-   made participants both faster and more accurate than standard training."*
-   Evidence: the new program was faster (42s vs 55s) but accuracy was tied
-   (91% both). The conjunction makes the claim false — gold is **refuted** —
-   but Jeff 1 returned **supported @ 0.796**. The model is weak at
-   conjunctions where one conjunct fails.
-3. **Adversarial jaggedness.** On a 9-item adversarial jaggedness probe,
-   Jeff 1 scored **8/9** versus live Jev's 9/9 (the reference score is recorded
-   in `scripts/probe_jaggedness.py`). The one miss was a counting probe: gold
-   **refuted**, Jeff 1 answered **not_enough_info @ 0.639** — it abstained
-   instead of falsifying.
-4. **Post-hoc bias is not a fix.** A global "supported" logit nudge is
-   worse than identity on the scale split. The same nudge gains 2 rows on
-   the 199-row val split and loses 9 on scale.
+- **Over-claiming is the dominant error.** Jeff 1 answers "supported" for
+  12.3% of gold-refuted rows and 24.4% of gold-not_enough_info rows, versus
+  6.2% and 14.3% for live Jev. It is systematically more willing than Jev to
+  call a claim supported — for example, a conjunctive claim whose evidence
+  confirms one half but only ties the other was judged "supported" at 0.796
+  confidence.
+- **Weak insufficient-evidence handling.** Most of the accuracy gap sits in
+  `not_enough_info` recall: 0.578 vs Jev's 0.712 overall, and 0.523 vs 0.655
+  on single-passage rows. Jeff 1 tends to treat a topically relevant passage
+  as if it entailed the claim. On multi-passage rows (climate_fever, n=859)
+  Jeff 1 is more accurate than Jev (0.669 vs 0.591).
+- **Small probes are directional only.** On a 9-item adversarial probe Jeff 1
+  scored 8/9 vs Jev's 9/9; on a 9-item conjunction probe, 5/9 vs 9/9. These
+  tiny probes locate failure modes; they are not evidence of broad
+  equivalence or non-equivalence.
+- **Not a verifier.** The model judges whether the supplied evidence supports
+  the claim; it does not check claims against external sources and can return
+  plausible but wrong judgments.
+- **Evaluation data informed development.** The 9,730-row split was used for
+  error analysis during development, so it is not a pristine holdout for
+  future iterations.
+- **Unmeasured operational properties.** Latency, throughput, and maximum
+  context were not benchmarked for this release; the server's self-reported
+  32,768-token context is a config value, not a measurement. Score questions
+  use whole-sequence scoring (one extra pass per level), and each question
+  costs a forward pass.
 
 ## Usage
 
-Full run instructions are in `RELEASE_JEFF1.md`; in one paragraph: run
-`scripts/jev_clf_server.py` (serves on port 8079; endpoints `POST
-/v1/systemone`, `GET /` demo page, `GET /health`, `GET /v1/models`), which
-loads the multi adapter `artifacts/jev_clf/lora_4b_multi` by default; serve
-requests with the Jev-systemone body; `scripts/jeff_demo_page.py` documents
-the demo UI and the reliability diagram served from
-`results/static/calibration_plot.png`.
+See [`README.md`](README.md) for install and run instructions: the Python
+client (`jev_clf.client.SystemOneClient`), the local HTTP server
+(`POST /v1/systemone`, `GET /` demo, `GET /v1/models`, `GET /health` on port
+8079), and direct PEFT loading from `GestaltLabs/Jeff-1`.
 
-## Citation / provenance
+## Provenance
 
-- Repo: this directory, commit `527f2a4`.
-- Base model: `Qwen/Qwen3-4B-Instruct-2507` (Apache 2.0).
-- Evaluation splits: `data/factcheck/ground_truth.jsonl` (sealed val,
-  n=199) and `data/factcheck/eval_large.jsonl` (scale, n=9,730).
-- Reference implementation of the comparison harness and server:
-  `scripts/jev_clf_server.py`, `scripts/jeff_demo_page.py`,
-  `scripts/probe_jaggedness.py`.
+- Evaluation audit: `results/researchmax_gap_audit.json` and `.md` (canonical
+  release figures; input file hashes recorded inside).
+- Research history, including earlier adapters and superseded experiments:
+  `PROVENANCE.md` and the `results/` archive. These document how the release
+  was reached; they are not release instructions.

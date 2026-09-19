@@ -1,89 +1,80 @@
 # Jeff 1
 
-An open-source, locally runnable typed decision model.
+**An open-source model for typed decisions, with local inference and a guide to training your own.**
 
-Jeff takes a **state** (a claim and its evidence, or any other structured
-input) plus **typed questions**, and returns probability distributions
-over the labels you declared. It speaks the same Choice / Noul / Score
-shape as TypeSafe Jev, but the weights run on your machine.
+Jeff takes text or structured data and a set of questions, then returns labels
+and probabilities instead of generated prose. Label names and descriptions are
+supplied at call time.
 
-- Code: [github.com/Gestalt-Lab/jeff](https://github.com/Gestalt-Lab/jeff)
-- Weights: [huggingface.co/GestaltLabs/Jeff-1](https://huggingface.co/GestaltLabs/Jeff-1)
-- License: Apache 2.0
-- Agent entrypoint: [`AGENTS.md`](AGENTS.md)
+- [Model weights](https://huggingface.co/GestaltLabs/Jeff-1)
+- [Source code](https://github.com/Gestalt-Lab/jeff)
+- [Train your own Jeff](docs/TRAIN_YOUR_OWN.md)
+- [Coding-agent guide](AGENTS.md)
+- **License:** Apache 2.0 for the code and adapter
 
-Jeff is independent. It is not affiliated with TypeSafe AI.
+## What it does
 
-## What
+Jeff supports three question types:
 
-Jeff 1 is **Qwen3-4B-Instruct-2507 + a rank-16 LoRA**. There is no
-bolted-on classification head. The label set and each label's wording
-arrive in the prompt at call time. The answer is read from the model's
-own next-token distribution, restricted to those labels.
+| Type | Input | Output |
+|---|---|---|
+| `choice` | Named labels with descriptions | Selected label, probabilities, and confidence |
+| `noul` | A yes/no question | Probability of yes |
+| `score` | Ordered levels with descriptions | Level probabilities, expected level index, and confidence |
 
-Three primitives:
+The model is a LoRA adapter for
+[Qwen3-4B-Instruct-2507](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507).
+It scores candidate labels using the language model's token probabilities.
+It uses first-token scoring when candidates have distinct first tokens and
+whole-sequence scoring otherwise. Confidence is the largest label probability.
 
-| type | returns |
-|---|---|
-| `choice` | one label from a caller-supplied set, plus a distribution |
-| `noul` | P(yes) for a presence / yes-no question |
-| `score` | a distribution over ordered levels, plus an expected score |
+## Why Jeff
 
-It is a classifier, not a chat model. It does not generate JSON, does
-not browse the web, and does not check claims against anything except
-the evidence you passed in.
+Typed outputs let applications use model judgments without parsing generated
+text. Open weights let you inspect, adapt, and run the model locally; after the
+initial download, inference does not require a hosted model API.
 
-## Why
-
-Hosted decision APIs are fast and closed. If you want to inspect the
-weights, run offline, or point an agent at a repo instead of a vendor,
-you need a local model with a typed contract.
-
-Jeff exists so that “is this claim supported by *this* evidence?” is a
-function call, not a paragraph of model prose you then have to parse.
-
-## Why it matters
-
-- **Open weights.** The adapter is Apache 2.0; the base model is Apache
-  2.0. You can fine-tune, audit, or serve it without an API key.
-- **Typed output.** Downstream code gets distributions that sum to 1,
-  not free text.
-- **Call-time schemas.** New label wording does not require a retrain.
-- **Honest comparison.** We measured Jeff and live Jev 1.13.0 on the
-  **same 9,730 human-labelled rows**. Jeff is slightly less accurate and
-  better calibrated under one shared confidence definition. That gap is
-  documented, not spun.
+Jeff supports Jev-style Choice, Noul, and Score requests. It is an independent
+project, not affiliated with TypeSafe AI. API compatibility does not imply
+identical judgments or performance.
 
 ## Results
 
-Measured on **9,730 human-labelled claims**, the same rows for both models.
-Confidence is the maximum class probability. Argmax follows label insertion order.
+The released adapter was evaluated against live Jev 1.13.0 on the same
+**9,730 human-labelled fact-checking examples** from FEVER, VitaminC, SciFact,
+and Climate-FEVER.
+
+| Model | Accuracy | Macro-F1 | Brier ↓ | ECE ↓ |
+|---|---:|---:|---:|---:|
+| Jeff 1 | 0.8183 (7,962/9,730) | 0.7789 | 0.2839 | 0.0807 |
+| Jev 1.13.0 | 0.8283 (8,059/9,730) | 0.7994 | 0.2750 | 0.0932 |
 
 ![Accuracy and calibration](docs/figures/headline.png)
 
-| model | n | accuracy | macro-F1 | Brier | ECE |
-|---|---:|---:|---:|---:|---:|
-| **Jeff 1** | 9,730 | 0.8183 (7,962) | 0.7789 | 0.2839 | **0.0807** |
-| live Jev 1.13.0 | 9,730 | **0.8283** (8,059) | 0.7994 | **0.2750** | 0.0932 |
-
-Jev is about one accuracy point ahead (McNemar p = 0.0036; 95% CI on the
-difference [+0.0033, +0.0165]). Jeff is better calibrated on this
-definition; Jev is better on Brier. Jev also publishes a separate
-internal confidence score (ECE 0.0790) that is not the same quantity.
+Jeff has lower accuracy and Brier performance than Jev on this evaluation,
+but lower expected calibration error (ECE). Both ECE values use maximum class
+probability and ten equal-width bins. Jev's separate API confidence statistic
+is not used in this comparison. Lower ECE does not guarantee that an individual
+prediction is correct.
 
 ![Recall by class](docs/figures/recall.png)
 
-Jeff is stronger on `supported` and weaker on `not_enough_info`. The
-accuracy gap sits mostly on single-passage rows. On Climate-FEVER
-(five passages) Jeff is ahead (0.669 vs 0.591).
+Jeff identifies supported claims more reliably than claims with insufficient
+evidence. The reliability plot compares predicted confidence with observed
+accuracy:
 
 ![Reliability](docs/figures/reliability.png)
 
-These weights are `lora_4b_multi` — Choice, Noul, and Score. A 199-row
-validation split exists (underpowered: a 3-row difference, p = 0.59) and
-was scored with a different, Choice-only adapter.
+These results describe `GestaltLabs/Jeff-1` (`lora_4b_multi`), not the older
+Choice-only adapter. This evaluation set has also been used for error analysis;
+it is not an untouched benchmark for future versions.
+[Evaluation details](MODEL_CARD_JEFF1.md) and the
+[recomputed metrics](results/researchmax_gap_audit.md) document the comparison.
 
-## How to use
+## Quickstart
+
+Clone the full repository and install its dependencies with
+[uv](https://docs.astral.sh/uv/):
 
 ```bash
 git clone https://github.com/Gestalt-Lab/jeff
@@ -91,91 +82,106 @@ cd jeff
 uv sync
 ```
 
-Python (downloads `GestaltLabs/Jeff-1` if the local adapter is absent):
+Run Python examples with `uv run python`. The first model load downloads the
+base model and adapter. Inference needs enough memory for the 4B base model;
+CUDA and Apple Silicon MPS are supported.
 
 ```python
 from jev_clf.client import SystemOneClient, Choice, Noul, Score
 
-client = SystemOneClient()  # Qwen3-4B + Jeff-1 LoRA
-
+client = SystemOneClient(adapter="GestaltLabs/Jeff-1")
 result = client.system_one(
     {
-        "claim": "The new training program made participants both faster and more accurate.",
-        "evidence": [
-            "New program mean time 42s vs standard 55s.",
-            "Both groups scored 91% correct.",
-        ],
+        "claim": "The museum opened in 1998.",
+        "evidence": ["The museum first opened to visitors in 1998."],
     },
     {
         "verdict": Choice(
-            instructions="Verdict from the evidence only.",
+            instructions="Judge the claim using only the supplied evidence.",
             criteria={
-                "supported": "The passages guarantee the claim.",
-                "refuted": "The passages guarantee the claim is false.",
-                "not_enough_info": "The evidence is silent or mixed.",
+                "supported": "The evidence establishes the claim.",
+                "refuted": "The evidence contradicts the claim.",
+                "not_enough_info": "The evidence is insufficient to decide.",
             },
         ),
-        "has_number": Noul(instructions="Does the evidence contain a number?"),
+        "has_date": Noul(instructions="Does the evidence include a year?"),
         "strength": Score(
             instructions="How strongly does the evidence settle the claim?",
             criteria=["none", "weak", "moderate", "strong"],
         ),
     },
 )
-print(result.choices["verdict"].choice, result.choices["verdict"].probabilities)
+print(result.choices["verdict"].choice)
+print(result.choices["verdict"].probabilities)
+print(result.nouls["has_date"].noul)
+print(result.scores["strength"].score)
 ```
 
-HTTP:
+### Local HTTP server
 
 ```bash
-uv run python -m scripts.jev_clf_server   # http://127.0.0.1:8079
-# POST /v1/systemone   GET /   GET /v1/models   GET /health
+uv run python -m scripts.jev_clf_server
 ```
 
-Direct PEFT load:
+Open `http://127.0.0.1:8079` for the demo. The server exposes
+`POST /v1/systemone`, `GET /health`, and `GET /v1/models`.
+
+### Load with PEFT
+
+For lower-level access:
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 
 base = "Qwen/Qwen3-4B-Instruct-2507"
-tok = AutoTokenizer.from_pretrained(base)
+tokenizer = AutoTokenizer.from_pretrained(base)
 model = AutoModelForCausalLM.from_pretrained(base, dtype="bfloat16")
-model = PeftModel.from_pretrained(model, "GestaltLabs/Jeff-1")
+model = PeftModel.from_pretrained(model, "GestaltLabs/Jeff-1").eval()
 ```
 
-## Known issues
+Load the tokenizer from the base model. PEFT loads the weights; the Jeff client
+adds prompt construction and label scoring in `jev_clf/readout.py`.
 
-1. **Over-claiming.** Jeff answers `supported` for 12.3% of gold-refuted
-   rows (Jev 6.2%) and 24.4% of gold-NEI rows (Jev 14.3%). Conjunctions
-   with one true half are a typical failure.
-2. **`not_enough_info` on single-passage rows** accounts for most of the
-   accuracy gap. Multi-passage Climate-FEVER is a Jeff win (0.669 vs 0.591).
-3. **Serial questions.** One forward pass per question. Jev stays roughly
-   flat as question count grows; Jeff does not.
-4. **Score readout.** Levels `" 0"`…`" 3"` share a first token, so Score
-   uses whole-sequence scoring (extra passes).
-5. **Probes.** Jaggedness 8/9 vs Jev 9/9. Conjunction 5/9 vs 9/9. The
-   HTTP schema supports the three primitives; that is not the same as
-   matching Jev on every reasoning pattern.
-6. **Other adapters.** `lora_merged` and unpublished distillation
-   checkpoints are unevaluated.
-7. **This scale split already informed error analysis**, so it is not a
-   fresh holdout for later designs.
+## Train your own Jeff
 
-Full write-up: [`RELEASE_JEFF1.md`](RELEASE_JEFF1.md),
-[`MODEL_CARD_JEFF1.md`](MODEL_CARD_JEFF1.md),
-[`PROVENANCE.md`](PROVENANCE.md).
+The [training walkthrough](docs/TRAIN_YOUR_OWN.md) explains how to:
 
-## Layout
+1. Represent your task as states, questions, and labelled answers.
+2. Prepare separate training, validation, and test data.
+3. Fine-tune a LoRA adapter on a Colab GPU.
+4. Evaluate the adapter and load it with the same client.
 
-| path | what |
+It explains the learning objective and label-scoring mechanism as well as the
+commands. The small examples illustrate the format; a useful model needs a
+representative dataset and independent evaluation.
+
+## Limitations
+
+- **Unsupported positive verdicts.** Jeff can mark a claim as supported when
+  evidence supports only part of it or merely discusses the same topic. Claims
+  combining several assertions are a known weakness.
+- **Insufficient evidence.** Performance is weaker when the correct answer is
+  `not_enough_info`, particularly with a single evidence passage.
+- **Evidence only.** Jeff does not retrieve sources or independently establish
+  whether supplied evidence is true. It can give confidently wrong answers.
+- **Per-question computation.** Questions are scored separately. Labels that
+  require whole-sequence scoring incur additional computation.
+- **Limited generalization evidence.** The main evaluation is fact-checking.
+  Small Choice, Noul, and Score checks verify supported interfaces, not broad
+  reasoning equivalence to Jev or reliability on a new task.
+
+## Repository layout
+
+| Path | Purpose |
 |---|---|
-| `jev_clf/` | schema, client, readout, eval |
-| `scripts/jev_clf_server.py` | local HTTP API (port **8079**) |
-| `scripts/audit_decision_results.py` | fail-closed paired metrics |
-| `data/factcheck/` | gold labels and saved predictions |
-| `artifacts/` | gitignored; get weights from Hugging Face |
+| `jev_clf/` | Question schemas, client, label scoring, and evaluation |
+| `scripts/jev_clf_server.py` | Local HTTP server |
+| `scripts/jev_clf_lora_train.py` | LoRA training |
+| `scripts/audit_decision_results.py` | Paired prediction audit |
+| `docs/TRAIN_YOUR_OWN.md` | Training tutorial |
+| `AGENTS.md` | Development instructions for coding agents |
 
-A separate diffusion-head project (d-Jeff) is planned. This repository
-is the released one-shot classifier.
+See [release notes](RELEASE_JEFF1.md) for the published artifact and
+[research history](PROVENANCE.md) for earlier experiments. Model weights are
+hosted on Hugging Face, not stored in Git.

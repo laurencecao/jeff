@@ -1,0 +1,31 @@
+# Starter config for the "Train your own Jeff" walkthrough.
+# See docs/TRAIN_YOUR_OWN.md. Point data.train / data.val at your own JSONL
+# files before running; the smoke test refuses to start without them.
+model: Qwen/Qwen3-4B-Instruct-2507
+dtype: bfloat16
+max_length: 2048
+gradient_checkpointing: true
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules: [q_proj, k_proj, v_proj, o_proj]
+
+optim:
+  lr: 0.0001
+  weight_decay: 0.0
+  epochs: 2
+  batch_size: 4          # 4B: keep vocab-sized logits inside ~40 GB
+  grad_accum: 8          # effective batch = 32
+  warmup_ratio: 0.03
+  max_grad_norm: 1.0
+  seed: 42
+
+data:
+  train: data/my_task/sft_train.jsonl
+  val: data/my_task/sft_val.jsonl
+  prompt_format: eval
+  completion_leading_space: true
+
+out_dir: artifacts/jev_clf/my_jeff
