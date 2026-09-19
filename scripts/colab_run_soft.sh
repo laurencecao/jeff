@@ -19,11 +19,31 @@ set -x
 #   ImportError: cannot import name 'HybridCache' from 'transformers'
 set +e
 if ! python -c "import peft, transformers, torch" 2>/dev/null; then
-  echo "import probe FAILED -- diagnosing"
+  echo "import probe FAILED -- repairing peft, never downgrading it"
   python -c "import peft, transformers, torch" 2>&1 | tail -5
-  pip uninstall -y torchao >/dev/null 2>&1 || true
   python -m pip install -q "peft==0.21.0"
 fi
+# torchao check. A plain `import torchao` is NOT the right test: the failure
+# only fires when peft builds a LoRA layer, because its dispatcher calls
+# is_torchao_available() which RAISES on an old version:
+#   ImportError: Found an incompatible version of torchao. Found version 0.10.0,
+#   but only versions above 0.16.0 are supported
+# So test the version, not the import.
+python - <<'EOF'
+import importlib, subprocess, sys
+try:
+    m = importlib.import_module("torchao")
+    v = getattr(m, "__version__", "0")
+    major, minor = (int(x) for x in v.split(".")[:2])
+    too_old = (major, minor) < (0, 16)
+except ImportError:
+    too_old = False
+if too_old:
+    print("torchao is too old for peft; uninstalling (safe: peft treats it as optional)")
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "torchao"])
+else:
+    print("torchao OK or absent")
+EOF
 set -e
 python -c "import peft, transformers, torch; print('peft', peft.__version__, 'tf', transformers.__version__, 'torch', torch.__version__, 'cuda', torch.cuda.is_available())"
 
