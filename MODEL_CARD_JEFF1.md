@@ -48,7 +48,7 @@ supported/refuted/not_enough_info verdict.
 | `artifacts/jev_clf/lora_4b_multi` | **Demo default.** Adds 1,800 Score rows and 1,200 Noul rows to the same base (per the comment in `scripts/jev_clf_server.py`). | 0.7789 |
 
 A merged checkpoint (`artifacts/jev_clf/lora_merged`) exists in the tree but is
-**unvalidated — do not use it**; it has no verified evaluation numbers.
+unevaluated.
 
 ## Evaluation
 
@@ -78,28 +78,21 @@ scale split (0.0807 vs 0.0932). In-repo, `results/jeff_final.md` reports the
 same val figures at 3 decimal places (0.784 / 0.090 / 0.769 / 0.114), and the
 scale figures appear in the server's `/v1/models` payload and the demo page.
 
-> **Calibration caveat — read before quoting any ECE.** Jev also reports an
-> *internal* confidence statistic. Scored on that statistic, Jev's ECE is
-> 0.0790. That number is **not comparable** to the table above: it uses a
-> different confidence definition than Jeff 1's max-class probability, and
-> Jev's internal statistic diverges from the max-class probability by up to
-> 0.33 (mean 0.040). It must never be presented as Jev beating Jeff 1's
-> 0.0807; the like-for-like comparison is 0.0932 vs 0.0807, and Jeff 1 wins it.
+> Jev also reports an internal confidence statistic. Scored on that statistic,
+> Jev's ECE is 0.0790. That is a different definition than max-class
+> probability (the two can differ by up to 0.33, mean 0.040). The like-for-like
+> comparison in the table is 0.0932 vs 0.0807.
 
 Additional Jeff 1 numbers on the sealed val split: **macro-F1 0.7620,
 Brier score 0.3186, agreement-with-Jev 0.8518**.
 
-> **Do not quote the val split as a lead over Jev.** The 0.7839 vs 0.7688
-> difference is 3 rows out of 199. A paired McNemar test on those same rows
-> gives 17 discordant pairs for Jeff 1 and 14 against, z=0.54, **p=0.59** —
-> not significant — and a bootstrap 95% CI on val accuracy spans ±5.6 points
-> (±11 rows), about 7× wider than the scale split's ±0.75 points. On the scale
-> split, where the split is large enough to decide, the accuracy difference
-> runs the other way and *is* significant: Jev 0.8283 vs Jeff 1 0.8183,
-> paired McNemar z=2.94, **p=0.0033**. Jeff 1's advantage is calibration
-> (0.0807 vs 0.0932), not accuracy. Also note the two splits disagree on the
-> direction of a fix — biasing the `supported` label gains 2 rows on val while
-> losing 9 on scale — so val must not be used for tuning.
+> The 199-row validation split is underpowered. Jeff 0.7839 vs Jev 0.7688 is
+> 3 rows (McNemar p = 0.59); a bootstrap 95% CI spans ±5.6 points. Those val
+> numbers also used a different, Choice-only adapter. On the 9,730-row scale
+> split Jev is ahead on accuracy (0.8283 vs 0.8183, p = 0.0033) and Jeff is
+> ahead on max-probability ECE (0.0807 vs 0.0932). A `supported` bias that
+> gains 2 rows on val loses 9 on scale, so the small split is a poor tuning
+> target.
 
 ## Intended use
 
@@ -122,7 +115,7 @@ Brier score 0.3186, agreement-with-Jev 0.8518**.
 - Latency, throughput, and maximum context were not benchmarked for this
   release; the server's self-reported `context: 32768` in `/v1/models` is a
   config value, not a measurement.
-- `artifacts/jev_clf/lora_merged` is unvalidated and must not be used.
+- `artifacts/jev_clf/lora_merged` is unevaluated.
 
 ## Known failure modes
 
@@ -145,12 +138,9 @@ for these failure classes.
    in `scripts/probe_jaggedness.py`). The one miss was a counting probe: gold
    **refuted**, Jeff 1 answered **not_enough_info @ 0.639** — it abstained
    instead of falsifying.
-4. **Fixes, honestly.** A global "supported" logit bias at inference time is
-   strictly worse than identity (no bias) on the scale split, so the honest
-   fix is **retraining**, not a post-hoc nudge. A related caution: a
-   "supported" bias tuned on the sealed val split improves that split by 2
-   rows but degrades the 9,730-row scale split by 9 rows — the two splits
-   disagree, and val-only tuning must not be presented as a gain.
+4. **Post-hoc bias is not a fix.** A global "supported" logit nudge is
+   worse than identity on the scale split. The same nudge gains 2 rows on
+   the 199-row val split and loses 9 on scale.
 
 ## Usage
 

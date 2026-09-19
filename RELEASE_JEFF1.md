@@ -76,18 +76,17 @@ climate_fever 859.
 
 ### Head-to-head read
 
-**The validation split is too small to establish a lead, and must not be quoted
-as one.** Jeff 1 scores 0.7839 vs Jev's 0.7688 there, but that is 3 rows out of
-199. A paired McNemar test on the same rows gives 17 discordant pairs in Jeff 1's
-favour and 14 against, z=0.54, **p=0.59** — not significant. A bootstrap 95% CI
-on the validation accuracy spans ±5.6 points (±11 rows), roughly 7× wider than
-the scale split's ±0.75 points. Treat the validation split as a smoke test only.
+The 199-row validation split is underpowered. Jeff 1 scores 0.7839 vs
+Jev's 0.7688 there — 3 rows out of 199 (McNemar p = 0.59). A bootstrap
+95% CI spans ±5.6 points, about 7× wider than the scale split. Treat it
+as a smoke test. Those val numbers also used a different, Choice-only
+adapter.
 
-On the 9,730-row scale split the picture is stable, and the accuracy difference
-there *is* significant: Jev is more accurate (0.8283 vs 0.8183), a paired McNemar
-z=2.94, **p=0.0033**. Jeff 1 is better calibrated (0.0807 vs 0.0932). So the
-honest summary is: **Jeff 1 is a calibration win and a small but real accuracy
-loss on the split large enough to measure it.**
+On the 9,730-row scale split the accuracy difference is stable: Jev is
+ahead (0.8283 vs 0.8183, McNemar p = 0.0033). Jeff 1 is better
+calibrated on max-probability ECE (0.0807 vs 0.0932). **Jeff 1 is a
+calibration win and a small, real accuracy loss on the split large
+enough to measure it.**
 
 That gap is concentrated, not diffuse: the bulk sits in `not_enough_info` recall
 on single-passage rows (see Failure Modes), and on multi-passage rows Jeff 1 is
@@ -195,9 +194,7 @@ Written candidly, because they are the honest way to use this model:
   threshold would flip are currently right.
 - **Validation-scope caution.** A 'supported' bias tuned against the sealed
   validation split improves validation by +2 rows while degrading the 9,730-row
-  scale by −9 rows. The two splits disagree about the direction of the fix; an
-  improvement observed on the validation split alone must not be presented as a
-  gain.
+  scale by −9 rows. The two splits disagree about the direction of the fix.
 
 ## What ships (adapters)
 
