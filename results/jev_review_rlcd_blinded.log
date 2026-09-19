@@ -1,0 +1,29 @@
+[blind] model = jev-1.13.0
+
+--- which_objective ---
+   0.7600  O2
+   0.1900  O5
+   0.0300  O3
+   0.0200  O4
+   0.0000  O1
+   -> O2
+
+--- reward_source ---
+   0.5100  human_plus_teacher_soft
+   0.4900  human_only
+   0.0000  teacher_argmax
+   0.0000  student_self
+   -> human_plus_teacher_soft
+
+--- is_reward_gradient_ok ---
+   0.6500  yes
+   0.3500  no
+   -> yes
+
+# Reading: run blinded -- the prompt omits our conclusion, omits the measured
+# gradient ratio, and the options are neutrally worded in a different order than
+# the earlier prompted review. It still selects O2 (CE on soft teacher targets)
+# at 0.76 over exact-reward RL at 0.03, and assigns 0.0000 to both
+# teacher_argmax and student_self as reward sources. Because it was not told the
+# answer, this is the stronger of the two reviews; the earlier one is recorded as
+# a prompted sanity check. Neither is ground truth: Jev is ~0.83 accurate here.

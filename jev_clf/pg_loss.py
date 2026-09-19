@@ -106,24 +106,141 @@ def exact_kl(
 
 def exact_reward_loss(
     policy_logprobs: torch.Tensor,
-    gold: torch.Tensor,
+    gold: torch.Tensor | None = None,
     ref_logprobs: torch.Tensor | None = None,
     cfg: PGConfig | None = None,
+    soft_target: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     """Exact expected-reward objective: the analytically marginalized bandit loss.
 
-        L = -mean_s( pi(gold | s) )  +  beta * KL(pi(.|s) || pi_ref(.|s))
+        hard gold :  L = -mean_s( pi(gold | s) )        + beta * KL
+        soft target: L = -mean_s( sum_a q(a|s) pi(a|s) ) + beta * KL
 
-    Why this is the PREFERRED Arm A objective when the label space is enumerable
-    (here: 3 verdict labels, at most 5 score levels):
+    REWARD SOURCE — the thing to get right. The reward must mean *ground truth
+    correctness*, so:
 
-    The bandit reward is known for EVERY action -- 1 if the emitted label equals
-    gold, else 0 -- so E[R | s] = pi(gold | s) exactly. Maximising the expected
-    reward therefore needs no action sampling, no baseline, and has ZERO
-    variance. REINFORCE would estimate the same expectation with Monte Carlo
-    noise, a baseline, and occasional degenerate batches; none of that machinery
-    is required here. Keep REINFORCE only for parity with a reward that cannot be
-    enumerated (e.g. a learned or human-delivered reward).
+      * human-labelled rows -> `gold` (the hard human label). Unambiguous.
+      * teacher-labelled rows -> `soft_target` = the teacher's FULL distribution
+        q(a|s), giving E_q[R] = sum_a q(a) pi(a). Using the teacher's argmax as if
+        it were ground truth would optimise imitation of a teacher that is itself
+        ~0.83 accurate on this data, and would throw away the uncertainty the
+        teacher actually expressed (e.g. {refuted 0.93, NEI 0.07}). The soft form
+        keeps that signal and is the only defensible way to use teacher rows here.
+
+    Passing neither `gold` nor `soft_target` is an error: there is no reward.
+
+
+    """
+    cfg = cfg or PGConfig()
+    if policy_logprobs.ndim != 2:
+        raise ValueError("policy_logprobs must be [n, L]")
+    n, L = policy_logprobs.shape
+    if (gold is None) == (soft_target is None):
+        raise ValueError("pass exactly one of gold (hard) or soft_target (distribution)")
+
+    pi = policy_logprobs.exp()
+
+    if gold is not None:
+        if gold.shape != (n,):
+            raise ValueError(f"gold must be [{n}]")
+        if gold.numel() and (int(gold.min()) < 0 or int(gold.max()) >= L):
+            raise ValueError("gold index out of range for the label space")
+        expected_r = pi.gather(1, gold.view(-1, 1)).squeeze(1)
+        source = "hard_gold"
+    else:
+        assert soft_target is not None
+        if soft_target.shape != (n, L):
+            raise ValueError(f"soft_target must be [{n}, {L}]")
+        # q need not be normalized to be a valid expectation, but a non-normalized
+        # target is almost certainly a bug (logits passed instead of probabilities).
+        row_sums = soft_target.sum(dim=-1).float()
+        if soft_target.numel() and not torch.allclose(
+            row_sums, torch.ones_like(row_sums), atol=1e-2
+        ):
+            raise ValueError(
+                "soft_target rows must sum to 1; pass probabilities, not logits"
+            )
+        expected_r = (soft_target * pi).sum(dim=-1)
+        source = "soft_teacher"
+
+    reward_term = -expected_r.mean()
+
+    kl = torch.zeros((), dtype=policy_logprobs.dtype, device=policy_logprobs.device)
+    if ref_logprobs is not None:
+        kl = exact_kl(policy_logprobs, ref_logprobs)
+
+    loss = reward_term + cfg.kl_beta * kl
+
+    if cfg.entropy_beta:
+        entropy = -(pi * policy_logprobs).sum(dim=-1)
+        loss = loss - cfg.entropy_beta * entropy.mean()
+
+    diag = {
+        "reward_source": source,  # type: ignore[dict-item]
+        "reward_term": float(reward_term.detach()),
+        "kl_term": float(kl.detach()),
+        "mean_expected_reward": float(expected_r.detach().mean()),
+        "min_expected_reward": float(expected_r.detach().min()) if expected_r.numel() else 0.0,
+        "saturated_frac": float((expected_r.detach() > 0.99).float().mean())
+        if expected_r.numel() else 0.0,
+    }
+    return loss, diag
+
+    """
+    cfg = cfg or PGConfig()
+    if policy_logprobs.ndim != 2:
+        raise ValueError("policy_logprobs must be [n, L]")
+    n, L = policy_logprobs.shape
+    if (gold is None) == (soft_target is None):
+        raise ValueError("pass exactly one of gold (hard) or soft_target (distribution)")
+
+    pi = policy_logprobs.exp()
+
+    if gold is not None:
+        if gold.shape != (n,):
+            raise ValueError(f"gold must be [{n}]")
+        if gold.numel() and (int(gold.min()) < 0 or int(gold.max()) >= L):
+            raise ValueError("gold index out of range for the label space")
+        expected_r = pi.gather(1, gold.view(-1, 1)).squeeze(1)
+        source = "hard_gold"
+    else:
+        assert soft_target is not None
+        if soft_target.shape != (n, L):
+            raise ValueError(f"soft_target must be [{n}, {L}]")
+        # q need not be normalized to be a valid expectation, but a non-normalized
+        # target is almost certainly a bug (logits passed instead of probabilities).
+        row_sums = soft_target.sum(dim=-1).float()
+        if soft_target.numel() and not torch.allclose(
+            row_sums, torch.ones_like(row_sums), atol=1e-2
+        ):
+            raise ValueError(
+                "soft_target rows must sum to 1; pass probabilities, not logits"
+            )
+        expected_r = (soft_target * pi).sum(dim=-1)
+        source = "soft_teacher"
+
+    reward_term = -expected_r.mean()
+
+    kl = torch.zeros((), dtype=policy_logprobs.dtype, device=policy_logprobs.device)
+    if ref_logprobs is not None:
+        kl = exact_kl(policy_logprobs, ref_logprobs)
+
+    loss = reward_term + cfg.kl_beta * kl
+
+    if cfg.entropy_beta:
+        entropy = -(pi * policy_logprobs).sum(dim=-1)
+        loss = loss - cfg.entropy_beta * entropy.mean()
+
+    diag = {
+        "reward_source": source,  # type: ignore[dict-item]
+        "reward_term": float(reward_term.detach()),
+        "kl_term": float(kl.detach()),
+        "mean_expected_reward": float(expected_r.detach().mean()),
+        "min_expected_reward": float(expected_r.detach().min()) if expected_r.numel() else 0.0,
+        "saturated_frac": float((expected_r.detach() > 0.99).float().mean())
+        if expected_r.numel() else 0.0,
+    }
+    return loss, diag
 
     Relationship to CE, stated precisely because a sloppy version is tempting.
     With z_gold the correct-class logit:
