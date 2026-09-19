@@ -17,14 +17,20 @@ Two corrections this fixes:
    confidence — not a reimplementation. Nothing in this arm should be described as
    "Jev's method".
 
-## The hard obstacle, measured
+## What the corpus does and does not constrain
 
-A calibrated-decision objective needs outcomes that are genuinely uncertain
-*conditional on the input the model sees*. For a classifier whose input is
-`(claim, evidence)` and whose output is a label, that means repeated annotation of
-the **same** `(claim, evidence)`.
+A calibrated-decision objective needs a target that distinguishes confidence from
+accuracy. Two different things were being conflated, and the distinction matters:
 
-Measured on the corpus we have, keyed by the full task
+**Calibration IS learnable from singly-labelled data.** Log loss
+(cross-entropy) is a *strictly proper scoring rule*: its population minimiser
+over scoring functions is the true conditional probability `P(y|x)`. Repeated
+inputs are **not** required to learn calibrated probabilities — that is the
+standard result, and it is how every calibrated classifier is trained in
+practice. So there is no impossibility here, and an earlier draft of this file
+wrongly claimed there was.
+
+**What the corpus lacks** is outcome *stochasticity*. Keyed by the full task
 `(state, question_id, schema_id, label_source)`:
 
 | asset | distinct full-task keys | keys with repeats | keys with disagreeing labels |
@@ -32,24 +38,37 @@ Measured on the corpus we have, keyed by the full task
 | `ground_truth.jsonl` train | 1,589 | 0 | 0 |
 | `sft_train_multi.jsonl` | 12,119 | 0 | 0 |
 
-**There is no repeated-label data.** An earlier count of "848 disagreeing states"
-was an artifact: it collapsed across question kinds, and `sft_train_multi`
-deliberately asks Choice, Noul and Score questions over the same state, whose
-labels are not comparable. Keyed correctly, the disagreement vanishes.
+An earlier count of "848 disagreeing states" was an artifact: it collapsed across
+question kinds, and `sft_train_multi` deliberately asks Choice, Noul and Score
+questions over the same state, whose labels are not comparable. Keyed correctly,
+the disagreement vanishes.
 
-Consequences, stated plainly:
+Consequences, precisely:
 
-- A per-sample reward of `1[correct]` is **ordinary supervised cross-entropy**
-  under a policy-gradient wrapper. It carries no calibration information and
-  actively pushes toward confidence 1.
-- Using the model's **own sampled** correctness fraction as a calibration target
-  is circular — it measures the policy's own error rate, not the truth.
-- `log p(y_gold)` / Brier on a deterministic label is likewise CE, not a proper
-  score over uncertain outcomes.
+- Any reward that depends on *sampling an outcome* (e.g. "was the emitted label
+  right?") has no signal beyond the label itself here, because every label is
+  single and deterministic. That limits which reward shapes are *usable*.
+- Instance-level calibration cannot be *empirically verified* without repeats.
+- **Population-level calibration remains measurable** on held-out data — that is
+  exactly what ECE does, and it is what this project already reports. So
+  "calibration is unmeasurable here" would also be false.
 
-So a faithful "RL for calibrated decisions" reward is **not constructible from
-this corpus**. Building one anyway would be the exact overconfidence failure the
-name is meant to prevent.
+## Correctness reward vs cross-entropy
+
+These are not the same objective, and the difference is worth stating because
+both are on the table:
+
+- A correctness policy gradient maximises `p_y` for the emitted label.
+- Cross-entropy maximises `log p_y`.
+
+They share the **same one-hot optimum** on deterministic-label data, but they are
+different objectives with different gradients and different optimisation paths.
+So "correctness RL is just CE with extra steps" is too strong. What is true is
+that neither, on its own, is a *proper scoring rule over sampled outcomes* here —
+because there are no sampled outcomes in this corpus. CE is a proper scoring rule
+over the label distribution, which is why it is the right default target for
+calibration and why an RL arm must justify itself against it rather than assume
+superiority.
 
 ## What is therefore in scope
 
