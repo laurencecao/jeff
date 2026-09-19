@@ -1,21 +1,27 @@
-"""Why did the user's real case fail while a structurally identical probe passed?
+"""Is the demo verdict stable across near-identical phrasings of the same facts?
 
-The user's live payload (1 passage, both facts in ONE text field) returned
-"supported" at 0.796. probe_conjunction's conj-falsified-1 -- the SAME claim with
-the SAME two facts, but split into TWO passages -- returned "refuted" at 0.515.
+MOTIVATION (an observation, not a controlled result). The user's live payload --
+one passage holding both facts -- returned "supported" at 0.796. A separate probe,
+probe_conjunction's conj-falsified-1, put the SAME two facts in TWO passages under
+a differently-phrased claim and returned "refuted" at 0.515. Two near-identical
+inputs, opposite verdicts.
 
-That is a 0.28 confidence swing and an argmax flip from nothing but PASSAGE
-GRANULARITY. If real, it explains the 1-passage not_enough_info deficit directly:
-a single passage gives the model one slot to attend to, so "evidence exists"
-collapses to "supported".
+WHY THE OBVIOUS EXPLANATION IS NOT SUPPORTED. It is tempting to call that an
+effect of PASSAGE GRANULARITY alone -- "one slot to attend to, so evidence exists
+collapses to supported". This probe CANNOT establish that, and an earlier version
+of this file wrongly claimed it did ("holds the text constant and varies only how
+it is chunked"). The variants do not hold wording constant: variant A wraps the
+facts in a longer sentence ("Researchers compared 100 participants who completed a
+new training program...") while variants B-E use the bare SPEED/ACC constants, and
+the accuracy sentence is stated in full in A but abbreviated elsewhere. Wording
+AND structure move together, so neither is isolated.
 
-CAVEAT: an earlier version of this file claimed it "holds the text constant and
-varies only how it is chunked". That is NOT what the variants actually do.
-Variant A wraps the same facts in a longer sentence ("Researchers compared 100
-participants who completed a new training program...") while variants B-E use the
-bare SPEED/ACC constants, so BOTH wording and structure differ between A and the
-rest. Do not report this as a chunking-controlled result; it shows brittleness
-across near-identical inputs, nothing narrower.
+WHAT THIS PROBE DOES SHOW. Brittleness: near-identical inputs flip the verdict and
+swing confidence from 0.506 to 0.946. That is a real, reproducible finding about
+the model, and it is the narrowest claim these variants support.
+
+To actually isolate chunking, word the claim and passages IDENTICALLY and vary
+only the number of evidence entries -- not yet done.
 """
 
 from __future__ import annotations
