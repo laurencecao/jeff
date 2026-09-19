@@ -426,27 +426,51 @@ def main() -> None:
         bias="none",
         task_type="CAUSAL_LM",
     )
-    model = get_peft_model(model, lora_cfg)
-
-    # --- resume from a previous epoch checkpoint --------------------------
-    # Only valid because the LoRA is saved (not the optimizer state), so this
-    # resumes from the last COMPLETED epoch with a fresh optimizer. Acceptable
-    # here: the cosine schedule is short and the run is 2 epochs. It is not a
-    # bit-exact continuation and must not be described as one.
+    # --- wrap for training, branching on resume ---------------------------
+    # DO NOT wrap unconditionally and then re-wrap on resume. PeftModel.from_pretrained
+    # constructs a NEW PeftModel around whatever module it is handed, so calling it
+    # on an already-wrapped model nests adapters and mismatches optimizer/state
+    # keys. On resume, from_pretrained must receive the RAW base model.
     start_epoch = 0
     prior_history: list[dict] = []
     prior_val_loss = None
     state_path = out_dir / "train_state.json"
-    if args.resume and state_path.exists() and (out_dir / "adapter_model.safetensors").exists():
+    adapter_file = out_dir / "adapter_model.safetensors"
+    resuming = bool(args.resume and state_path.exists() and adapter_file.exists())
+
+    if resuming:
+        from peft import PeftModel
         prior = json.loads(state_path.read_text())
         start_epoch = int(prior.get("epochs_done", 0))
         prior_history = list(prior.get("history", []))
         prior_val_loss = prior.get("val_loss")
-        from peft import PeftModel
+        # `model` is still the raw base model here.
         model = PeftModel.from_pretrained(model, out_dir, is_trainable=True)
-        print(f"[resume] loaded {out_dir} at epoch {start_epoch} "
-              f"(prior val_loss={prior_val_loss}); training epochs "
-              f"{start_epoch}..{opt['epochs'] - 1}", flush=True)
+        _ckpt = out_dir / "train_state.pt"
+        if _ckpt.exists():
+            _st = torch.load(_ckpt, map_location="cpu", weights_only=False)
+            resume_optim = _st.get("optimizer")
+            resume_sched = _st.get("scheduler")
+            resume_gstep = int(_st.get("gstep", 0))
+            resume_rng = _st.get("rng_python")
+            resume_rng_torch = _st.get("rng_torch")
+            resume_rng_dev = _st.get("rng_device")
+            print(f"[resume] loaded {out_dir} at epoch {start_epoch} "
+                  f"(prior val_loss={prior_val_loss}, optimizer+scheduler+RNG "
+                  f"state restored, gstep={resume_gstep}); training epochs "
+                  f"{start_epoch}..{opt['epochs'] - 1}", flush=True)
+        else:
+            resume_optim = resume_sched = None
+            resume_rng = resume_rng_torch = resume_rng_dev = None
+            resume_gstep = 0
+            print(f"[resume] loaded {out_dir} at epoch {start_epoch} but NO "
+                  f"train_state.pt: optimizer/scheduler state is NOT restored, so "
+                  f"this continuation is not trajectory-identical and must be "
+                  f"reported as a protocol difference.", flush=True)
+    else:
+        # Fresh run: wrap the raw base model exactly once.
+        model = get_peft_model(model, lora_cfg)
+
     if cfg.get("gradient_checkpointing"):
         model.enable_input_require_grads()
     model.print_trainable_parameters()
@@ -473,16 +497,48 @@ def main() -> None:
     )
     steps_per_epoch = math.ceil(len(train_ex) / (opt["batch_size"] * opt["grad_accum"]))
     remaining_epochs = opt["epochs"] - start_epoch
-    total_steps = steps_per_epoch * remaining_epochs
-    warmup = max(1, int(total_steps * opt["warmup_ratio"]))
-    sched = get_cosine_schedule_with_warmup(optimizer, warmup, total_steps)
+    # The scheduler is built over the FULL run length even when resuming, so its
+    # cosine lambda closure matches the original schedule. Building it on
+    # `remaining_epochs` would produce a different LR curve and make
+    # load_state_dict restore an incompatible position.
+    full_total_steps = steps_per_epoch * opt["epochs"]
+    run_steps = steps_per_epoch * remaining_epochs
+    warmup = max(1, int(full_total_steps * opt["warmup_ratio"]))
+    sched = get_cosine_schedule_with_warmup(optimizer, warmup, full_total_steps)
+
+    # Restore optimizer/scheduler if a checkpoint provided them. Doing this AFTER
+    # construction is the only correct order: the state dicts must be applied to
+    # live objects.
+    if args.resume and locals().get("resume_optim") is not None:
+        optimizer.load_state_dict(resume_optim)
+        sched.load_state_dict(resume_sched)
+        print(f"[resume] optimizer and scheduler state restored "
+              f"(gstep={resume_gstep})", flush=True)
     print(f"[train] epochs={opt['epochs']} (starting at {start_epoch}) "
-          f"steps/epoch={steps_per_epoch} total={total_steps} warmup={warmup} "
+          f"steps/epoch={steps_per_epoch} run_steps={run_steps} "
+          f"schedule_total={full_total_steps} warmup={warmup} "
           f"eff_batch={opt['batch_size'] * opt['grad_accum']}")
+
+    if not resuming:
+        resume_optim = resume_sched = None
+        resume_rng = resume_rng_torch = resume_rng_dev = None
+        resume_gstep = 0
 
     history = list(prior_history)
     rng = random.Random(seed)
-    gstep = 0
+    # RNG continuity. Without this the resumed run repeats the epoch-0 shuffle and
+    # resets dropout, so it is a different trajectory even with optimizer state
+    # restored -- and the run can no longer be called a clean one-variable arm.
+    if args.resume and locals().get("resume_rng") is not None:
+        rng.setstate(resume_rng)
+        if resume_rng_torch is not None:
+            torch.set_rng_state(resume_rng_torch)
+        if resume_rng_dev is not None and torch.cuda.is_available():
+            torch.cuda.set_rng_state_all(resume_rng_dev)
+        print("[resume] row-shuffle and torch RNG state restored", flush=True)
+    # Continue the global step counter so schedule position and logging stay
+    # consistent with an uninterrupted run.
+    gstep = resume_gstep if args.resume and locals().get("resume_optim") is not None else 0
     model.train()
     for epoch in range(start_epoch, opt["epochs"]):
         order = list(range(len(train_ex)))
@@ -521,7 +577,7 @@ def main() -> None:
                 if gstep % 20 == 0 or gstep == 1:
                     avg = accum_loss / accum_n
                     lr_now = sched.get_last_lr()[0]
-                    print(f"[train] epoch={epoch} step={gstep}/{total_steps} "
+                    print(f"[train] epoch={epoch} step={gstep}/{full_total_steps} "
                           f"loss={avg:.4f} lr={lr_now:.2e} "
                           f"elapsed={time.perf_counter() - t_start:.0f}s", flush=True)
                     history.append({"step": gstep, "epoch": epoch, "loss": avg, "lr": lr_now})
@@ -538,6 +594,31 @@ def main() -> None:
         # --resume continues from the highest epoch already on disk.
         model.save_pretrained(out_dir)
         tok.save_pretrained(out_dir)
+        # Optimizer and scheduler state are saved alongside the adapter. Without
+        # them a resumed run continues with a fresh AdamW moment estimate and a
+        # fresh cosine schedule, which is NOT the same trajectory as an
+        # uninterrupted run -- that would make a resumed arm an unclean
+        # one-variable ablation rather than a resumption of the same training.
+        torch.save(
+            {
+                "optimizer": optimizer.state_dict(),
+                "scheduler": sched.state_dict(),
+                "gstep": gstep,
+                "epochs_done": epoch + 1,
+                "val_loss": val_loss,
+                "history": history,
+                # All three RNG streams that affect the trajectory: Python's row
+                # shuffle, torch CPU (dropout), and torch CUDA/MPS.
+                "rng_python": rng.getstate(),
+                "rng_torch": torch.get_rng_state(),
+                "rng_device": (
+                    torch.cuda.get_rng_state_all()
+                    if torch.cuda.is_available()
+                    else None
+                ),
+            },
+            out_dir / "train_state.pt",
+        )
         (out_dir / "train_state.json").write_text(
             json.dumps({"epochs_done": epoch + 1, "gstep": gstep,
                         "val_loss": val_loss, "history": history}) + "\n"
