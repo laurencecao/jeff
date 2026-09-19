@@ -114,7 +114,7 @@ gradient by the shape of `q` during training and still collapses to the teacher'
 single most likely label at convergence — it does NOT preserve the teacher's
 uncertainty. A proper scoring rule that is actually minimised at `pi = q` is soft
 cross-entropy `-sum_a q(a) log pi(a)` (or KL(pi || q)), which is what
-`scripts/jev_clf_lora_train.py` already implements.
+`scripts/jev_clf_lora_train.py` already implements `KL(q || pi)`.
 
 **Objective — Arm A (DEMOTED; kept for the record).** The reward is enumerable
 over 3 labels (`r(a) = 1[a == gold]`), so the exact expected-reward objective is
@@ -128,15 +128,20 @@ its gradient vanishes on confidently-wrong rows — exactly the NEI rows this ar
 targets. Section 7 of `scripts/test_pg_toy.py` measures the gradient at
 `p_gold` in {0.001, 0.5, 0.999}. REINFORCE is kept only as a parity check.
 
-**Objective — Arm B (control, mandatory).** Plain cross-entropy on the same rows,
-same optimizer, same effective batch, same epochs. CE's gradient is `p_gold - 1`,
-i.e. it does NOT vanish on hard errors, so this is a real competitor rather than a
-straw man. Without Arm B no gain can be attributed to the objective.
+**Arm B (control).** Plain cross-entropy on the same rows, same optimizer, same
+effective batch, same epochs. CE's gradient is `p_gold - 1`, i.e. it does NOT
+vanish on hard errors, so it is a real competitor rather than a straw man. For the
+soft-distillation experiment the matched control is **`lora_4b_multi` itself** (see
+the matched-A/B decision below) — no separate run is required.
 
-**Calibration.** Not in the reward. Post-hoc temperature/isotonic fitted on the
-238-row carve only, then applied unchanged to val/test/scale. `train.py` currently
-fits these on the sealed val split, which is a leak for this arm and must not be
-reused; fitting on val and reporting val ECE is circular.
+**Calibration — NOT part of the chosen experiment.** The carve-fitted
+temperature/isotonic plan below applies to a carve-clean experiment, which is the
+REJECTED option: `lora_4b_multi` saw the 238 carve rows, so the carve cannot
+calibrate this A/B. The chosen experiment reports **raw ECE**, exactly as the
+published 0.0807 already is. Separately, note that `train.py` fits its
+temperature/isotonic on the sealed val split — that is fine for the legacy loop
+where val is a smoke test, but it must never be quoted as a calibrated val ECE for
+this arm, since fitting on val and reporting val is circular.
 
 **Metrics, all on untouched data.** Scale accuracy (n=9,730) as primary; scale ECE;
 NEI recall on single-passage rows; the three probe families (conjunction,
@@ -184,36 +189,83 @@ degenerate into trivial `gold > wrong-label`. If they do, that is **RLCD-style
 data generation + preference learning**, and must be labelled as that — not as
 RL over a calibrated reward.
 
-## First bounded experiment
+## The experiment to run: soft-distillation A/B (NOT the reward arm)
 
-1. Emit the two arm datasets from the gated pool (same rows, one artifact each):
-   Arm A and Arm B see identical rows; only the objective differs.
-2. Cache the frozen reference's full `[n, L]` log-prob vector per row, once, from
-   `artifacts/jev_clf/lora_4b_multi`. Never hold policy and reference in memory
-   simultaneously — that is what the cache is for.
-3. Train **Arm A** (`-mean pi(gold) + beta*KL`) from `lora_4b_multi`.
-4. Train **Arm B** (matched CE) on the same rows, same optimizer/epochs/batch.
-5. Fit temperature/isotonic on the 238-row carve ONLY; apply unchanged downstream.
-6. Evaluate on untouched `val` (n=199), the 9,730 scale split, and the held-out
-   probes. Report accuracy, ECE, NEI recall, and the three probe families.
-7. Gate Noul/Score and six-shape capability parity — choice-only tuning can
-   regress multi-primitive behaviour.
-8. Report Arm A vs Arm B vs the `lora_4b_multi` baseline with paired McNemar.
+The reward arm is demoted and is not part of this experiment.
+
+**The one change under test.** `scripts/jev_clf_lora_train.py` already computes
+`CE + soft_target_weight * mean_rows KL(q || pi)`. The RL arm is dropped because
+two measurements disqualified it: the expected-reward gradient is ~1000x weaker
+than CE exactly on confidently-wrong rows (ratio 0.0010 at `p_gold=0.001`), and its
+soft form collapses to `argmax(q)` (measured KL 0.415 vs 0.0002 for `KL(q || pi)`
+on the same target `q=[0.93,0.07,0.0]`).
+
+### Matched-A/B decision: run on ALL 12,119 rows, no carve
+
+Two ways to do this were on the table and they are NOT compatible. Resolved in
+favour of the pre-registered one:
+
+- **CHOSEN — all 12,119 rows, no carve-fitted calibration.** `lora_4b_multi` was
+  trained on all 12,119 rows. A soft arm trained on the 10,376 carve-excluded rows
+  would differ in BOTH the objective and the training data, so a win could not be
+  attributed to the objective, and calling it a matched A/B would be false. It
+  also costs one GPU run instead of two. The pre-registration
+  (`PREREGISTRATION_soft_distill.md`) was written against exactly this comparison.
+- **REJECTED — a carve-clean calibration experiment.** Training both a CE and a
+  soft arm on the same 10,376 rows would permit fitting temperature/isotonic on
+  the carve without touching either arm's rows. It is the cleaner *calibration*
+  experiment but it is a different, larger experiment (two runs, and a new
+  baseline that is no longer the published `lora_4b_multi`).
+
+**Consequence, stated plainly:** because `lora_4b_multi` saw the 238 carve rows,
+the carve CANNOT be used to calibrate this A/B. So this experiment does **no**
+post-hoc calibration at all — it reports raw ECE, exactly as the published 0.0807
+already is. That is a real limitation of the pre-registered design, not an
+oversight: the carve exists for the RLCD arm, which trains on carve-excluded rows,
+and it will be used there if that arm is ever revived.
+
+### Steps
+
+1. Training pool: `data/factcheck/sft_train_multi.jsonl`, `split='train'`, all
+   12,119 rows. Leave `data.exclude_calib_carve` at its default `false` so the row
+   set is identical to `lora_4b_multi`'s.
+2. Train from the base model exactly as `lora_4b_multi` was, with ONE variable
+   changed: `optim.soft_target_weight: 1.0`. Same LoRA shape, optimizer, epochs,
+   batch, seed. Configs `configs/jev_clf_lora_soft.yaml` (A100) and
+   `..._soft_t4.yaml` (T4; batch 1 x accum 32 keeps the effective batch at 32).
+3. Matched baseline = **`lora_4b_multi` itself**: byte-identical config except
+   `soft_target_weight`, trained on the identical 12,119 rows. No separate control
+   run is needed.
+4. Expect `soft targets usable on 10319/12119` — the 1,800 score rows share first
+   token 220 and legitimately switch the KL term off. A materially lower count
+   means the KL path is misconfigured; stop.
+5. Score on the untouched 9,730-row scale split and the 199-row val split; run the
+   three probe families.
+6. Gate Noul/Score and six-shape capability parity — choice-path tuning can regress
+   multi-primitive behaviour.
+7. Report `lora_4b_soft` vs `lora_4b_multi` with a paired McNemar on the same
+   rows, and check the pre-registered prediction (+10..+40 rows, NEI-concentrated,
+   probably not individually significant at p<0.05).
 
 ## Compute constraint
 
-`trl` is not installed and is not needed — the objective is a pure-tensor loss
-plus a custom loop, which is also why it could be verified on CPU first. The local
-box is an M3 Max with 36 GB unified memory, where a 4B LoRA at batch 4 x 2048
-OOM-killed at step 2, so **the 4B runs need a GPU**. Colab was returning no
-sessions as of this writing. Per-epoch checkpointing and `--resume` are in place
-so a recycle costs at most one epoch.
+The local box is an M3 Max with 36 GB unified memory, where a 4B LoRA at batch
+4 x 2048 OOM-killed at step 2, so **the run needs a GPU**. Colab was returning no
+sessions as of this writing. Per-epoch checkpointing and `--resume` are in place,
+and `scripts/colab_run_soft.sh` packs the adapter after every epoch, so a recycle
+costs at most one epoch.
 
 ## Failure conditions (stated before running)
 
-- Arm A does not beat Arm B on untouched scale accuracy → the policy objective is
-  not the lever; report it and stop.
-- Arm A improves accuracy while ECE degrades beyond noise → correctness and
-  calibration are trading off, and the separation above was the wrong cut.
-- Any capability regression on Noul/Score or the six shapes → the arm is not
-  shippable regardless of its accuracy.
+For the **soft-distillation** arm, replacing the Arm A gates that stood here:
+
+- Scale accuracy does not improve over `lora_4b_multi` (0.8183) → the discarded
+  soft targets were not the binding constraint; report it and stop.
+- NEI recall on single-passage rows does not move → the hardening was not the
+  mechanism, regardless of what the overall accuracy does.
+- Scale accuracy falls below ~0.8100, or raw ECE degrades beyond noise → the weight
+  is over-hedging; sweep `soft_target_weight` down or discard.
+- Any capability regression on Noul/Score or the six shapes → not shippable
+  regardless of accuracy.
+- The usable-soft count on the training set is far below 10,319 of 12,119 (the
+  1,800 score rows legitimately gate off) → the KL path is misconfigured.
