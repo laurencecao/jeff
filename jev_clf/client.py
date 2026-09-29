@@ -140,12 +140,31 @@ class SystemOneClient:
         # Load to CPU first and let .to() move the real weights. Loading with
         # dtype=bf16 and no device_map can leave a meta tensor when memory is
         # tight, and .to() then raises "Cannot copy out of meta tensor".
-        model = AutoModelForCausalLM.from_pretrained(base_model, dtype=self.dtype, device_map="cpu")
+        #
+        # With several visible GPUs, shard the model across them instead of
+        # filling one card: the 4B weights are ~8 GB in bf16, which is most of
+        # a 15 GB A2, and two loads racing for one card is an OOM. An explicit
+        # "cuda:0" opts back out of sharding.
+        self.sharded = device == "cuda" and torch.cuda.device_count() > 1
+        if self.sharded:
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model, dtype=self.dtype, device_map="auto"
+            )
+        else:
+            model = AutoModelForCausalLM.from_pretrained(
+                base_model, dtype=self.dtype, device_map="cpu"
+            )
         if adapter:
             from peft import PeftModel
 
             model = PeftModel.from_pretrained(model, adapter)
-        self.model = model.to(device).eval()
+        if self.sharded:
+            # accelerate dispatches the shards itself, and readout.distribution
+            # has to place inputs on the device that holds the embedding layer.
+            self.device = str(model.device)
+            self.model = model.eval()
+        else:
+            self.model = model.to(device).eval()
         self.model_id = f"{base_model}" + (f"+{Path(adapter).name}" if adapter else "")
 
     # -- one question -> a distribution over its declared labels ------------

@@ -22,6 +22,7 @@ from typing import Any
 import json
 import os
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -31,11 +32,13 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from jev_clf import schema as S  # noqa: E402
+from jev_clf.client import HF_ADAPTER  # noqa: E402
 from jev_clf.client import SystemOneClient  # noqa: E402
 
 MODEL_ID = "jeff-1"
@@ -52,19 +55,37 @@ STATIC_DIR = ROOT / "results" / "static"
 # 2-row noise floor), so the multi adapter costs nothing measurable and is the
 # only one that answers Score at all. Override with JEVCLF_DEMO_{BASE,ADAPTER}.
 DEFAULT_DEMO_BASE = "Qwen/Qwen3-4B-Instruct-2507"
-DEFAULT_DEMO_ADAPTER = str(ROOT / "artifacts/jev_clf/lora_4b_multi")
+# Use the local release adapter when it is actually present, otherwise the
+# published one -- the same rule jev_clf/client.py already applies. Pointing
+# PeftModel at the local path unconditionally makes it raise
+# "Can't find 'adapter_config.json'" on any host that has not downloaded the
+# artifact yet (the path is gitignored, so a fresh clone never has it).
+_LOCAL_DEMO_ADAPTER = ROOT / "artifacts/jev_clf/lora_4b_multi"
+DEFAULT_DEMO_ADAPTER = (
+    str(_LOCAL_DEMO_ADAPTER) if _LOCAL_DEMO_ADAPTER.exists() else HF_ADAPTER
+)
 
 app = FastAPI(title="jev_clf", description="An independent, decision-only fact-checking model.")
 _client: SystemOneClient | None = None
+# Sync endpoints run in a threadpool, so two early requests can both see
+# _client is None and build a model each -- ~8 GB apiece, which is an OOM on a
+# 15 GB card. Build it once, under a lock.
+_client_lock = threading.Lock()
+# The fast tokenizer behind the model is not thread-safe: two overlapping
+# requests raise "Already borrowed" from the Rust tokenizer. One 4B model on
+# shared GPUs is a single resource anyway, so serialize the forward passes.
+_infer_lock = threading.Lock()
 
 
 def get_client() -> SystemOneClient:
     global _client
     if _client is None:
-        _client = SystemOneClient(
-            base_model=os.environ.get("JEVCLF_DEMO_BASE", DEFAULT_DEMO_BASE),
-            adapter=os.environ.get("JEVCLF_DEMO_ADAPTER", DEFAULT_DEMO_ADAPTER),
-        )
+        with _client_lock:
+            if _client is None:
+                _client = SystemOneClient(
+                    base_model=os.environ.get("JEVCLF_DEMO_BASE", DEFAULT_DEMO_BASE),
+                    adapter=os.environ.get("JEVCLF_DEMO_ADAPTER", DEFAULT_DEMO_ADAPTER),
+                )
     return _client
 
 
@@ -150,7 +171,7 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
         state = "\n".join(str(p) for p in parts)
 
     try:
-        with torch.no_grad():
+        with _infer_lock, torch.no_grad():
             out = client.system_one(state, questions)
     except Exception as exc:
         raise HTTPException(500, f"inference failed: {exc}") from exc
@@ -204,7 +225,7 @@ if STATIC_DIR.is_dir():
 def main() -> None:
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=PORT)
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
 
 
 if __name__ == "__main__":
