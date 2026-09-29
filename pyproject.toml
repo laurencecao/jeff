@@ -2,7 +2,7 @@
 name = "jeff"
 version = "1.0.0"
 description = "Jeff 1 — an independent, local typed decision / fact-checking model"
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 dependencies = [
     "torch>=2.11.0",
     "transformers>=4.57.0",
@@ -16,7 +16,7 @@ dependencies = [
     "tqdm>=4.66.0",
     "typesafe-sdk>=0.6.0",
     "fastapi>=0.141.1",
-    "matplotlib>=3.11.2",
+    "matplotlib>=3.10.2",
     "uvicorn[standard]>=0.53.0",
 ]
 
