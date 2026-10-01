@@ -26,9 +26,24 @@ scale. Mixing readouts per label would compare uncalibrated values.
 
 from __future__ import annotations
 
+import contextlib
+
 import torch
 
 MODES = ("auto", "first_token", "sequence")
+
+
+def _locked(lock):
+    """``with _locked(tok_lock):`` — a no-op when the caller passes no lock.
+
+    The fast tokenizer is not thread-safe (concurrent ``tok(...)`` raises
+    "Already borrowed" from the Rust side), so a client that wants to run
+    several requests at once passes one lock and every tokenizer call in this
+    module goes through it. The forward passes themselves stay outside the
+    lock and are safe to run concurrently.
+    """
+    return lock if lock is not None else contextlib.nullcontext()
+
 
 
 def label_token_variants(tok, labels: list[str]) -> dict[str, list[int]]:
@@ -80,6 +95,7 @@ def distribution(
     device: str,
     max_length: int = 2048,
     mode: str = "auto",
+    tok_lock=None,
 ) -> dict[str, float]:
     """Probabilities over ``labels`` from the model's next-token
     distribution given ``text``.
@@ -93,28 +109,33 @@ def distribution(
     ``sequence`` readout needs logits INSIDE the label tokens, so it runs
     the model once per label over prompt+label — expected, and documented
     here because it shows up in latency for multi-token label sets.
+
+    ``tok_lock``: optional lock held around every tokenizer call, for callers
+    that run several questions concurrently (the fast tokenizer is not
+    thread-safe). Forward passes are never inside the lock.
     """
     if not labels:
         raise ValueError("labels must be non-empty")
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
 
-    variants = label_token_variants(tok, labels)
-    resolved = choose_mode(variants) if mode == "auto" else mode
-
-    enc = tok(
-        text, return_tensors="pt", truncation=True, max_length=max_length
-    ).to(device)
-    with torch.no_grad():
-        logits = model(**enc).logits[0, -1].float()
+    with _locked(tok_lock):
+        variants = label_token_variants(tok, labels)
+        resolved = choose_mode(variants) if mode == "auto" else mode
+        enc = tok(text, return_tensors="pt", truncation=True, max_length=max_length)
 
     if resolved == "first_token":
         # One shared prompt pass: softmax over each label's first-token logit.
+        with torch.no_grad():
+            logits = model(**enc.to(device)).logits[0, -1].float()
         sub = torch.tensor([logits[variants[label][0]] for label in labels])
         probs = torch.softmax(sub, dim=-1)
         return {label: float(p) for label, p in zip(labels, probs)}
 
-    # Sequence readout: one EXTRA forward per label over prompt + label.
+    # Sequence readout: one forward per label over prompt + label.
+    # (The prompt-only pass is NOT run here — the first-token readout is the
+    # only consumer of it, so computing it for a sequence question was wasted
+    # work; see the forward-count note in jev_clf/client.py.)
     prompt_ids = enc["input_ids"][0].tolist()  # post-truncation prompt ids
     totals: list[float] = []
     for label in labels:
@@ -133,3 +154,163 @@ def distribution(
         totals.append(total)
     probs = torch.softmax(torch.tensor(totals, dtype=torch.float32), dim=-1)
     return {label: float(p) for label, p in zip(labels, probs)}
+
+
+def distribution_batch(
+    model,
+    tok,
+    requests: list[tuple[str, list[str]]],
+    *,
+    device: str,
+    max_length: int = 2048,
+    mode: str = "auto",
+    batch_size: int = 8,
+    tok_lock=None,
+) -> tuple[list[dict[str, float]], int]:
+    """Batched sibling of :func:`distribution`: many prompts, few forwards.
+
+    ``requests`` is ``[(text, labels), ...]`` and the result is
+    ``(probs_list, n_passes)`` with one distribution per request, in order.
+
+    Cost:
+      * ``first_token`` questions cost ONE forward per ``batch_size`` chunk,
+        whatever the number of prompts (the per-question path costs one
+        forward per prompt).
+      * ``sequence`` questions cost one forward per label *index* per chunk
+        (the per-question path costs one forward per label per prompt).
+
+    Measured warm on 4x A2 (15 GB), bfloat16, model sharded across all four by device_map="auto": 8 same-length Noul questions 1295 ms / 8 forwards ->
+    729 ms / 1 forward. A mixed 4-question request (Choice + 2 Noul + Score)
+    1153 ms / 7 forwards -> 1056 ms / 5 forwards. The pass count drops much
+    more than the wall clock because a small batch on a sharded model is
+    latency-bound, not throughput-bound.
+
+    Prompts are LEFT-padded (the tokenizer's ``padding_side`` is set and
+    restored under ``tok_lock``) and ``position_ids`` are recomputed from the
+    attention mask, so every row is scored at its own last real token.
+
+    NOT bit-identical to the per-question path: a padded batch is a different
+    GEMM shape, so on bfloat16 the probabilities move by ~1e-4 (Choice) to
+    ~4e-3 (a Noul yes/no that sits near 0). Ranking/argmax is stable in the
+    measurements, but do not use this path to reproduce benchmarked
+    per-question numbers. ``scripts/test_readout_batch.py`` measures the gap.
+    """
+    if not requests:
+        return [], 0
+    for _, labels in requests:
+        if not labels:
+            raise ValueError("labels must be non-empty")
+    if mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}, got {mode!r}")
+    batch_size = max(1, int(batch_size))
+
+    out: list[dict[str, float] | None] = [None] * len(requests)
+    passes = 0
+
+    with _locked(tok_lock):
+        variants = [label_token_variants(tok, labels) for _, labels in requests]
+        resolved = [choose_mode(v) if mode == "auto" else mode for v in variants]
+        # Encode every prompt once; both readouts work from these ids.
+        prompt_ids = [
+            tok(text, truncation=True, max_length=max_length)["input_ids"]
+            for text, _ in requests
+        ]
+
+    # ---- first-token questions: one chunked forward for all of them -------
+    ft = [i for i, r in enumerate(resolved) if r == "first_token"]
+    for chunk in _length_chunks(ft, prompt_ids, batch_size):
+        batch = _left_padded(tok, [prompt_ids[i] for i in chunk], device)
+        with torch.no_grad():
+            logits = model(**batch).logits[:, -1, :].float()
+        passes += 1
+        for row, i in enumerate(chunk):
+            labels = requests[i][1]
+            var = variants[i]
+            sub = torch.tensor([logits[row][var[label][0]] for label in labels])
+            probs = torch.softmax(sub, dim=-1)
+            out[i] = {label: float(p) for label, p in zip(labels, probs)}
+
+    # ---- sequence questions: one chunked forward per label index ----------
+    # A pass scores one label position for every row, so rows must agree on
+    # their label list — and therefore on the label index being scored.
+    groups: dict[tuple[str, ...], list[int]] = {}
+    for i in [i for i, r in enumerate(resolved) if r == "sequence"]:
+        groups.setdefault(tuple(requests[i][1]), []).append(i)
+
+    for labels_tuple, rows in groups.items():
+        labels = list(labels_tuple)
+        totals: dict[int, list[float]] = {i: [0.0] * len(labels) for i in rows}
+        for k, label in enumerate(labels):
+            tokens = [variants[i][label] for i in rows]
+            for chunk, chunk_tokens in _token_chunks(rows, tokens, batch_size):
+                full = [prompt_ids[i] + t for i, t in zip(chunk, chunk_tokens)]
+                batch = _left_padded(tok, full, device)
+                with torch.no_grad():
+                    logits = model(**batch).logits.float()
+                passes += 1
+                width = int(batch["input_ids"].shape[1])
+                for row, (i, t) in enumerate(zip(chunk, chunk_tokens)):
+                    boundary = width - len(t) - 1  # row's last prompt token
+                    total = 0.0
+                    for j, tid in enumerate(t):
+                        total += float(
+                            torch.log_softmax(logits[row][boundary + j], dim=-1)[tid]
+                        )
+                    totals[i][k] = total
+        for i in rows:
+            probs = torch.softmax(
+                torch.tensor(totals[i], dtype=torch.float32), dim=-1
+            )
+            out[i] = {label: float(p) for label, p in zip(labels, probs)}
+
+    missing = [i for i, p in enumerate(out) if p is None]
+    if missing:
+        raise RuntimeError(f"distribution_batch produced no answer for {missing}")
+    return [p for p in out if p is not None], passes
+
+
+# -- batch plumbing ---------------------------------------------------------
+
+
+def _length_chunks(
+    idx: list[int], prompts: list[list[int]], batch_size: int
+) -> list[list[int]]:
+    """Sort by prompt length, then chunk — keeps padding waste small."""
+    order = sorted(idx, key=lambda i: len(prompts[i]))
+    return [order[s:s + batch_size] for s in range(0, len(order), batch_size)]
+
+
+def _token_chunks(
+    idx: list[int], tokens: list[list[int]], batch_size: int
+) -> list[tuple[list[int], list[list[int]]]]:
+    order = sorted(range(len(idx)), key=lambda j: len(tokens[j]))
+    out: list[tuple[list[int], list[list[int]]]] = []
+    for s in range(0, len(order), batch_size):
+        sel = order[s:s + batch_size]
+        out.append(([idx[j] for j in sel], [tokens[j] for j in sel]))
+    return out
+
+
+def _left_padded(tok, id_seqs: list[list[int]], device: str) -> dict:
+    """input_ids/attention_mask/position_ids for a causal LM, left-padded.
+
+    Left padding puts every row's last real token at index -1, and position
+    ids counted from each row's first real token keep the positions identical
+    to a single-prompt pass (so RoPE sees the same distances).
+    """
+    width = max(len(s) for s in id_seqs)
+    pad = tok.pad_token_id
+    if pad is None:
+        pad = tok.eos_token_id
+    ids, mask = [], []
+    for s in id_seqs:
+        pad_n = width - len(s)
+        ids.append([pad] * pad_n + list(s))
+        mask.append([0] * pad_n + [1] * len(s))
+    batch = {
+        "input_ids": torch.tensor(ids, dtype=torch.long, device=device),
+        "attention_mask": torch.tensor(mask, dtype=torch.long, device=device),
+    }
+    batch["position_ids"] = (batch["attention_mask"].cumsum(-1) - 1).clamp_min(0)
+    return batch
+
