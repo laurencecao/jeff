@@ -135,6 +135,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--server", default=DEFAULT_SERVER, help="Jeff 服务地址")
     parser.add_argument("--batch", action=argparse.BooleanOptionalAction, default=True,
                         help="请求服务端用批量读法：一次前向打多个问题（老服务端忽略此字段）")
+    parser.add_argument("--noul-normalize", action=argparse.BooleanOptionalAction, default=False,
+                        help="noul 模式下把本格各候选的 P(yes) 归一化成占比（默认原样使用）")
     parser.add_argument("--mode", choices=["choice", "noul"], default="choice",
                         help="choice=每格一个问题（一次前向）；noul=每个候选值一个问题")
     parser.add_argument("--threshold", type=float, default=0.6,
@@ -171,12 +173,13 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         try:
             scorer = JeffSudokuScorer(
                 transport=args.transport, base_url=args.server, mode=args.mode,
-                batch=args.batch,
+                batch=args.batch, noul_normalize=args.noul_normalize,
             )
         except JeffError as exc:
             print(f"无法连接 Jeff（{exc}）；改用 --transport none 可纯约束求解", file=sys.stderr)
             return 1
         print(f"\nJeff: {args.server}  mode={args.mode}  batch={args.batch}  "
+              f"noul_normalize={args.noul_normalize}  "
               f"threshold={args.threshold}  "
               f"prune={not args.no_prune}"
               + ("" if (args.no_prune or args.no_fallback) else "  (剪枝无解会自动关剪枝重搜)"))

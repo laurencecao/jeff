@@ -16,7 +16,7 @@ from types import SimpleNamespace
 from typing import Dict, List, Optional, Sequence
 
 try:  # 包内运行
-    from .jeff_client import DEFAULT_SERVER, JeffError, JeffSudokuScorer, parse_board
+    from .jeff_client import Answers, DEFAULT_SERVER, JeffError, JeffSudokuScorer, parse_board
     from .sudoku_solver import (
         PEERS,
         UNITS,
@@ -30,6 +30,7 @@ try:  # 包内运行
     )
 except ImportError:  # 脚本运行
     from jeff_client import (  # type: ignore[no-redef]
+        Answers,
         DEFAULT_SERVER,
         JeffError,
         JeffSudokuScorer,
@@ -435,11 +436,22 @@ def live_checks(server: str = DEFAULT_SERVER, full: bool = False) -> None:
     assert abs(sum(probs.values()) - 1.0) < 1e-6, "choice 分布应归一"
     assert scorer.stats.readout_modes.get("first_token"), scorer.stats.readout_modes
 
+    # noul：每个候选单独问，原始 P(yes) 原样返回（不要求和为 1）
     noul = JeffSudokuScorer(transport="http", base_url=server, mode="noul")
     probs2 = noul.score_one_cell(propagated, cell, values)
-    print(f"  [live] noul 模式 -> { {v: round(p, 3) for v, p in probs2.items()} }")
+    print(f"  [live] noul 原始 P(yes) -> { {v: round(p, 4) for v, p in probs2.items()} }"
+          f"  (和={sum(probs2.values()):.3f}，逐个独立问题，不必为 1)")
     assert set(probs2) == set(values)
-    assert abs(sum(probs2.values()) - 1.0) < 1e-6
+    assert all(0.0 <= p <= 1.0 for p in probs2.values())
+    noul_norm = JeffSudokuScorer(
+        transport="http", base_url=server, mode="noul", noul_normalize=True
+    )
+    probs3 = noul_norm.score_one_cell(propagated, cell, values)
+    print(f"  [live] noul 本格占比 -> { {v: round(p, 3) for v, p in probs3.items()} }")
+    assert abs(sum(probs3.values()) - 1.0) < 1e-6
+    assert sorted(probs3, key=lambda v: -probs3[v]) == sorted(
+        probs2, key=lambda v: -probs2[v]
+    ), "两种约定排序必须一致"
 
     if full:
         expected = "".join(map(str, ref_solutions(board)[0]))
@@ -453,6 +465,58 @@ def live_checks(server: str = DEFAULT_SERVER, full: bool = False) -> None:
         assert got is not None, f"HTTP 模式下未能解出：{solver.stats.summary()}"
         assert "".join(map(str, got)) == expected, "解与参考实现不一致"
         print(f"  [live] 完整求解 {dt:.1f}s，{solver.stats.summary()}")
+
+
+@test
+def test_noul_raw_vs_normalized() -> None:
+    """逐个 Noul 的原始 P(yes) 原样返回；只有显式要求才归一化。
+
+    这是模型语义问题，不是"哪个更对"：逐个问的是彼此独立的问题，不构成分布，
+    所以它们不需要和为 1。排序对单调变换不敏感，阈值比较才需要选一种约定。
+    """
+    class FixedNoulClient:
+        def __init__(self, values):
+            self.values = values
+            self.calls = 0
+
+        def system_one(self, state, questions):
+            self.calls += 1
+            nouls = {qid: self.values[int(qid.rsplit("_", 1)[1])] for qid in questions}
+            return Answers(
+                model="stub",
+                nouls=nouls,
+                readout_modes={qid: "first_token" for qid in questions},
+                forward_passes=1,
+            )
+
+    board = parse_board(PUZZLES["hard"])
+    propagated = SudokuSolver(None)._propagate(board)  # noqa: SLF001
+    cell = min(compute_candidates(propagated), key=lambda c: len(compute_candidates(propagated)[c]))
+    values = sorted(compute_candidates(propagated)[cell])
+    raw_values = {v: 0.007 / (i + 1) for i, v in enumerate(values)}  # 全都很小、和 << 1
+
+    raw = JeffSudokuScorer(client=FixedNoulClient(raw_values), mode="noul")
+    got = raw.score_one_cell(propagated, cell, values)
+    assert got == pytest_approx(raw_values), (got, raw_values)
+    assert sum(got.values()) < 0.1, "原始值不应该被悄悄归一化"
+
+    norm = JeffSudokuScorer(
+        client=FixedNoulClient(raw_values), mode="noul", noul_normalize=True
+    )
+    got_norm = norm.score_one_cell(propagated, cell, values)
+    assert abs(sum(got_norm.values()) - 1.0) < 1e-9
+    assert sorted(got_norm, key=lambda v: -got_norm[v]) == sorted(
+        got, key=lambda v: -got[v]
+    ), "归一化是单调变换，排序必须不变"
+
+    # 全 0（服务端缺字段）仍然兜底成均匀分布
+    zero = JeffSudokuScorer(client=FixedNoulClient({v: 0.0 for v in values}), mode="noul")
+    got_zero = zero.score_one_cell(propagated, cell, values)
+    assert abs(sum(got_zero.values()) - 1.0) < 1e-9
+
+
+def pytest_approx(d: dict) -> dict:
+    return {k: round(v, 12) for k, v in d.items()}
 
 
 @test

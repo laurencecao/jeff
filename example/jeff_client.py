@@ -15,8 +15,12 @@
   （标签用 one..nine 而不是 "1".."9"，原因见下）。一次前向即可拿到整格的
   概率分布，默认方式。
 * ``"noul"``   —— 每个 ``(格子, 候选值)`` 一个问题，问题文本里写明
-  “把 v 填进 R{row}C{col} 是否正确”，返回 P(yes)，再在同一个格子内
-  归一化成分布。
+  “把 v 填进 R{row}C{col} 是否正确”，返回的 P(yes) **原样使用**。
+  这些是彼此独立的问题，不是对候选集的一个分布，它们**不需要**和为 1
+  （实测 sudoku 提示下同一格三个候选的 P(yes) 加起来只有 0.02–0.04；
+  事实核查提示下同一个 Noul 却会给 0.9997）。排序只依赖大小关系，任何
+  单调变换都不改变它；只有想做“本格内占比”式的阈值判断时才需要归一化，
+  用 ``noul_normalize=True`` 显式打开。
 
 为什么 Choice 的标签用英文数字词
 --------------------------------
@@ -479,11 +483,14 @@ class ScorerStats:
 class JeffSudokuScorer:
     """把 ``{cell: [候选值]}`` 打包成 system_one 调用，返回 ``{(cell, value): 概率}``。
 
-    概率的含义
-    ----------
+    返回值的含义
+    ------------
     * ``mode="choice"``：``P(该格的值 = v | 棋盘)``，同一格内和为 1（模型原始输出）。
-    * ``mode="noul"``：``P(yes)`` 在同一格内归一化后和也为 1，便于跨格比较和
-      阈值判断；代价是丢掉了“模型绝对有多确信”这一信息。
+    * ``mode="noul"``：每个候选**单独问一次**得到的 ``P(yes)``，原样返回。
+      它不是一个分布，各候选之间不需要和为 1，也不该被当成“模型有多确信”
+      的绝对量：那只是模型对它被问的那个问题的回答。求解器只用它排序
+      （单调变换不改变排序），阈值剪枝在 ``noul_normalize=True`` 时才按
+      “本格占比”理解。
     """
 
     def __init__(
@@ -497,6 +504,7 @@ class JeffSudokuScorer:
         device: Optional[str] = None,
         batch: bool = False,
         mode: str = "choice",
+        noul_normalize: bool = False,
         cache: bool = True,
         max_cache_entries: int = 512,
         client: Any = None,
@@ -504,6 +512,8 @@ class JeffSudokuScorer:
         if mode not in ("choice", "noul"):
             raise ValueError(f"mode must be 'choice' or 'noul', got {mode!r}")
         self.mode = mode
+        # noul 的原始 P(yes) 直接返回；只有显式要求时才在格子内归一化
+        self.noul_normalize = noul_normalize and mode == "noul"
         self.client = (
             client
             if client is not None
@@ -558,7 +568,7 @@ class JeffSudokuScorer:
         todo: Dict[int, List[int]] = {}
         for cell, vals in pending.items():
             cached = self._cached(state, cell, vals)
-            if cached is None:
+            if cached is None:  # noqa: E501 - cache key includes the mode AND the convention
                 todo[cell] = vals
             else:
                 self.stats.cache_hits += 1
@@ -568,7 +578,9 @@ class JeffSudokuScorer:
         if todo:
             per_cell = self._ask(state, board, todo)
             for cell, vals in todo.items():
-                probs = self._normalize(vals, per_cell.get(cell, {}))
+                probs = self._normalize(
+                    vals, per_cell.get(cell, {}), force=self.noul_normalize
+                )
                 for v, p in probs.items():
                     scores[(cell, v)] = p
                 self._store(state, cell, vals, probs)
@@ -592,7 +604,9 @@ class JeffSudokuScorer:
     ) -> Optional[Dict[int, float]]:
         if self._cache is None:
             return None
-        return self._cache.get((state, cell, tuple(values), self.mode))
+        return self._cache.get(
+            (state, cell, tuple(values), self.mode, self.noul_normalize)
+        )
 
     def _store(
         self, state: str, cell: int, values: Sequence[int], probs: Dict[int, float]
@@ -601,7 +615,7 @@ class JeffSudokuScorer:
             return
         if len(self._cache) >= self._max_cache_entries:
             self._cache.clear()
-        self._cache[(state, cell, tuple(values), self.mode)] = dict(probs)
+        self._cache[(state, cell, tuple(values), self.mode, self.noul_normalize)] = dict(probs)
 
     def _ask(
         self,
@@ -661,7 +675,14 @@ class JeffSudokuScorer:
         return per_cell
 
     @staticmethod
-    def _normalize(values: Sequence[int], probs: Mapping[int, float]) -> Dict[int, float]:
+    def _normalize(
+        values: Sequence[int], probs: Mapping[int, float], force: bool = False
+    ) -> Dict[int, float]:
+        """原样返回（默认）或归一化（``force=True``）；只有全 0 才兜底成均匀。
+
+        归一化只是“把独立 yes/no 答案读成本格占比”的约定，不是对模型输出的
+        修正：它不改变排序（除以同一个正数），只改变与固定阈值比较的含义。
+        """
         vals = list(values)
         if not vals:
             return {}
@@ -670,4 +691,6 @@ class JeffSudokuScorer:
         if total <= 0.0:
             # 模型没给出可用数值（例如全 0），退化成均匀分布，由搜索逻辑兜底
             return {v: 1.0 / len(vals) for v in vals}
+        if not force:
+            return clean
         return {v: p / total for v, p in clean.items()}

@@ -259,7 +259,11 @@ class SudokuSolver:
         scorer: 形如 ``JeffSudokuScorer`` 的对象（只要有 ``score_one_cell(board,
             cell, values) -> {value: p}`` 即可）。``None`` 表示不使用模型，
             退化成纯约束求解器。
-        threshold: 剪枝阈值。``None`` 表示不做任何剪枝（只排序）。
+        threshold: 剪枝阈值，在 **scorer 返回的原始尺度** 上比较。``None`` 表示
+            不做任何剪枝（只排序）。注意 ``mode="noul"`` 默认给的是逐个独立问题
+            的 P(yes)（实测常在 0.01–0.04 这种量级），此时阈值实际上不会剪枝——
+            这正是“模型没对任何候选说 yes 就别剪”的合理行为。想让阈值表示
+            “本格内占比”，用 ``JeffSudokuScorer(mode="noul", noul_normalize=True)``。
         prune: 是否按阈值剪枝。只有在**至少一个候选 ≥ threshold** 时才真正
             剪掉低分候选；若没有任何候选达到阈值，则全部按分数顺序尝试
             （保证不会因为模型整体不自信而把一个有解盘面判死）。
@@ -448,10 +452,12 @@ class SudokuSolver:
             self._log(f"{'  ' * depth}Jeff 打分失败（改用均匀分布）：{exc}")
             return uniform
         probs = {v: float(raw.get(v, 0.0)) for v in values}
-        total = sum(probs.values())
-        if total <= 0.0:
+        if sum(probs.values()) <= 0.0:
             return uniform
-        return {v: p / total for v, p in probs.items()}
+        # 不在这里重新归一化：量纲由 scorer 决定（choice 是分布，noul 是逐个
+        # 独立问题的原始 P(yes)，两者都不该被求解器偷偷改成别的含义）。
+        # 阈值比较因此是在 scorer 给出的尺度上进行的，见 _order。
+        return probs
 
     def _propagate(self, board: List[int]) -> Optional[List[int]]:
         """约束传播到不动点；返回 None 表示死分支。"""
