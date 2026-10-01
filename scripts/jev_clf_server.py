@@ -72,9 +72,16 @@ _client: SystemOneClient | None = None
 # 15 GB card. Build it once, under a lock.
 _client_lock = threading.Lock()
 # The fast tokenizer behind the model is not thread-safe: two overlapping
-# requests raise "Already borrowed" from the Rust tokenizer. One 4B model on
-# shared GPUs is a single resource anyway, so serialize the forward passes.
-_infer_lock = threading.Lock()
+# requests raise "Already borrowed" from the Rust tokenizer, so the client
+# serializes its own tokenizer calls (SystemOneClient._tok_lock).
+#
+# Forward passes are a separate question. On one GPU they contend for the same
+# memory, which is why the default is still one request at a time. On CPU (or
+# with the model sharded over several GPUs) set JEVCLF_SERVER_CONCURRENCY=N>1
+# to let requests overlap; the tokenizer stays safe because the client holds
+# its own lock.
+_CONCURRENCY = max(1, int(os.environ.get("JEVCLF_SERVER_CONCURRENCY", "1")))
+_infer_gate = threading.Semaphore(_CONCURRENCY)
 
 
 def get_client() -> SystemOneClient:
@@ -85,6 +92,9 @@ def get_client() -> SystemOneClient:
                 _client = SystemOneClient(
                     base_model=os.environ.get("JEVCLF_DEMO_BASE", DEFAULT_DEMO_BASE),
                     adapter=os.environ.get("JEVCLF_DEMO_ADAPTER", DEFAULT_DEMO_ADAPTER),
+                    # Batched readout only: prompts per forward pass. Lower it
+                    # when the batch x context activations do not fit one GPU.
+                    batch_size=int(os.environ.get("JEVCLF_SERVER_BATCH_SIZE", "8")),
                 )
     return _client
 
@@ -113,6 +123,15 @@ class QScore(BaseModel):
 class SystemOneRequest(BaseModel):
     state: Any = Field(..., description="Text, a JSON object, or a message list.")
     questions: dict[str, QChoice | QNoul | QScore]
+    batch: bool = Field(
+        False,
+        description=(
+            "Score this request's questions with the batched readout: one "
+            "forward for all first-token questions, one per label index for "
+            "the sequence questions. Faster, but not bit-identical to the "
+            "per-question path (see jev_clf/readout.py::distribution_batch)."
+        ),
+    )
 
 
 # The union above is only resolvable once all three classes exist; without this
@@ -171,8 +190,8 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
         state = "\n".join(str(p) for p in parts)
 
     try:
-        with _infer_lock, torch.no_grad():
-            out = client.system_one(state, questions)
+        with _infer_gate, torch.no_grad():
+            out = client.system_one(state, questions, batch_questions=req.batch)
     except Exception as exc:
         raise HTTPException(500, f"inference failed: {exc}") from exc
 
@@ -181,7 +200,10 @@ def systemone(req: SystemOneRequest) -> JSONResponse:
     # trained at all (lora_4b is Choice-only).
     body: dict = {
         "model": client.model_id,
+        "device": client.device,
         "latency_ms": round((time.perf_counter() - t0) * 1000, 1),
+        "forward_passes": out.n_forward_passes,
+        "batched": out.batched,
     }
     for qid in questions:
         q = questions[qid]

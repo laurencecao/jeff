@@ -126,6 +126,16 @@ uv run python -m scripts.jev_clf_server
 Open `http://127.0.0.1:8079` for the demo. The server exposes
 `POST /v1/systemone`, `GET /health`, and `GET /v1/models`.
 
+`POST /v1/systemone` takes `{"state": ..., "questions": {...}, "batch": false}`.
+With `"batch": true` the questions of that request are scored with the batched
+readout — one forward pass for all first-token questions, one per label index
+for the sequence questions — instead of one pass per question. It is a
+throughput option, not a bit-identical one: a padded batch is a different GEMM
+shape, so probabilities move by ~1e-4 (Choice) to ~4e-3 (a Noul yes/no near 0) in
+bfloat16, with the same argmax in every measurement. Requests are
+serialized by default; `JEVCLF_SERVER_CONCURRENCY=N` lets them overlap (the
+tokenizer stays safe — the client locks its own tokenizer calls).
+
 ### Load with PEFT
 
 For lower-level access:

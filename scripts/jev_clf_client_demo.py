@@ -101,7 +101,7 @@ def main() -> None:
         s = res.scores["evidence_strength"]
         print(f"  score evidence_strength = {s.score:.3f}  confidence={s.confidence:.3f}")
         print(f"    probabilities = {{{', '.join(f'{k}: {v:.3f}' for k, v in s.probabilities.items())}}}")
-        print(f"  forward passes = {res.n_forward_passes} (one per question)")
+        print(f"  forward passes = {res.n_forward_passes} " + ("(batched)" if res.batched else "(one per question; sequence labels cost one per label)"))
 
     print("\n=== 2. same questions, live Jev (note: Score is untrained for us) ===")
     key = os.environ.get("TYPESAFE_API_KEY")
