@@ -187,6 +187,7 @@ representative dataset and independent evaluation.
 |---|---|
 | `jev_clf/` | Question schemas, client, label scoring, and evaluation |
 | `scripts/jev_clf_server.py` | Local HTTP server |
+| `example/` | Worked example: Jeff-scored Sudoku solver (see `example/README.md`) |
 | `scripts/jev_clf_lora_train.py` | LoRA training |
 | `scripts/audit_decision_results.py` | Paired prediction audit |
 | `docs/TRAIN_YOUR_OWN.md` | Training tutorial |
